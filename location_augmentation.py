@@ -9,7 +9,6 @@ pgn.close()
 pgn = open("data/lichess_db_standard_rated_2013-02.pgn")
 base_url = "https://lichess.org/api/user/"
 output_file = open("data/output.pgn", "a")
-
 pbar = tqdm(total=num_games)
 
 game = chess.pgn.read_game(pgn)
