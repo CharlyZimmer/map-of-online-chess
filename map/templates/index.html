@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Map of Online Chess</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
+    <script src="/static/js/countries.js"></script>
+  <style type="text/css">
+      body{
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const map = L.map('map').setView([0, 0], 3);
+
+            // Add a tile layer (the map background)
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+        // Add country GeoJSON data to the map
+        Countries.fetchCountries().then(countriesData => {
+                L.geoJSON(countriesData, {
+                    onEachFeature: Countries.onEachCountry,
+                    style: {
+                        fillColor: '#F28F3A',
+                        weight: 2,
+                        opacity: 1,
+                        color: 'white',
+                        fillOpacity: 0.7
+                    }
+                }).addTo(map);
+            });
+
+        // Show the user's position
+        Util.markPosition();
+        });
+    </script>
+</body>
+</html>
