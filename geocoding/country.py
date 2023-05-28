@@ -5,7 +5,7 @@ from pandas import DataFrame
 from pycountry import countries
 from ratelimiter import RateLimiter
 from tqdm import tqdm
-from typing import Dict, Union
+from typing import Dict, Union, Tuple
 
 
 class JSONParser:
@@ -38,20 +38,29 @@ class JSONParser:
             for attr in profile_attr:
                 player_dict[attr].append(player['profile'].get(attr, None))
 
-        # Turn the dictionary into a DataFrame and get the full country names
+        # Turn the dictionary into a DataFrame and get the full country names and ISO_A3 identifiers
         self.df = DataFrame(player_dict)
-        self.df.rename(columns={'country': 'alpha_2'}, inplace=True)
-        self.df['country'] = self.df['alpha_2'].apply(
-            lambda alpha_2: self._parse_country_attr(alpha_2)
-        )
+        self.df.rename(columns={'country': 'ISO_A2'}, inplace=True)
+        self.df = self.df.apply(self._parse_country_attr, axis=1)
+
+        print('Identified country names and ISO_A3 codes for each player.')
 
     @staticmethod
-    def _parse_country_attr(country_alpha_2: str) -> str:
+    def _parse_country_attr(row: pd.Series) -> pd.Series:
+        '''
+        Parse the ISO_A2 (alpha_2) string of a country into its name and ISO_A3 string.
+        The second is used for matching with the countries.geojson
+        :param row:      Row of a pandas DataFrame
+        :return:         Updated row with values for country and ISO_A3
+        '''
         try:
-            result = countries.get(alpha_2=country_alpha_2).name
+            country = countries.get(alpha_2=row['ISO_A2'])
+            row['country'] = country.name
+            row['ISO_A3'] = country.alpha_3
         except:
-            result = None
-        return result
+            row['country'] = None
+            row['ISO_A3'] = None
+        return row
 
     def get_country_ids(self, countries_parquet='./geocoding/known_countries.parquet.gzip'):
         '''
@@ -78,7 +87,7 @@ class JSONParser:
 
         # Get all country locations with progress bar
         tqdm.pandas(desc='Identifying country locations')
-        self.df['country_id'] = self.df['country'].progress_apply(
+        self.df['place_id'] = self.df['country'].progress_apply(
             lambda country: self._get_place_id(location_name=country,
                                                geolocator=geolocator,
                                                known_locations=known_countries,
@@ -89,6 +98,8 @@ class JSONParser:
         # Save the known countries as a parquet file
         known_df = DataFrame([{'country': country, **loc} for country, loc in known_countries.items()])
         known_df.to_parquet(countries_parquet, compression='gzip')
+
+        print(f'Added Nominatim country IDs for all players and saved known countries to {countries_parquet}.')
 
 
     @staticmethod
@@ -118,8 +129,10 @@ class JSONParser:
             self.parse_player_json()
             self.get_country_ids()
 
-        outpath = self.json_path.replace('.json', '.csv')
-        self.df.to_csv(outpath)
+        json_file_name = self.json_path.split('/')[-1]
+        out_path = './geocoding/' + json_file_name.replace('.json', '.parquet.gzip')
+        self.df.to_parquet(out_path, compression='gzip')
+        print(f'Saved player data to {out_path}\n')
 
 
 
@@ -130,6 +143,9 @@ if __name__ == '__main__':
     parser.add_argument('--user_agent', type=str, required=True)
     args = parser.parse_args()
 
+    print('\n' + '-'*50)
+    print(f'Parsing player countries for {args.json_path}')
+    print('-' * 50)
     parser = JSONParser(json_path=args.json_path, user_agent=args.user_agent)
     parser.write_df()
 

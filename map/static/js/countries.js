@@ -26,7 +26,7 @@
 
     // Show country name when clicking
     function countryClick(e) {
-        alert("You clicked on " + e.target.feature.properties.ADMIN);
+        alert(e.target.feature.properties.ADMIN + ": " + e.target.feature.properties.PLAYER_COUNT + " players");
     }
 
     // Highlight the country when hovered
