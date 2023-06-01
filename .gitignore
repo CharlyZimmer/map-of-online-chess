@@ -1,1 +1,8 @@
+# IDE Folders
 .vscode/
+.idea
+
+
+# Exclude all geojson and parquet files
+*.geojson
+*.parquet.gzip
