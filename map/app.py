@@ -7,8 +7,13 @@ def index():
     return render_template('index.html')
 
 @app.route('/countries')
-def leipzig_districts():
+def countries_geojson():
     with open('./static/json/countries.geojson', 'r') as file:
+        return file.read()
+
+@app.route('/enrichment_metadata')
+def metadata():
+    with open('./static/json/enrichment_metadata.json', 'r') as file:
         return file.read()
 
 

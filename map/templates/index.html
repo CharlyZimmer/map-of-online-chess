@@ -5,6 +5,9 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
     <script src="/static/js/countries.js"></script>
+    <script src="/static/js/colors.js"></script>
+    <script src="/static/js/utilities.js"></script>
+    <script src="/static/js/e4d4_visualization.js"></script>
   <style type="text/css">
       body{
         margin: 0;
@@ -29,94 +32,94 @@
 <body>
   <div id="map"></div>
   <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const map = L.map('map').setView([0, 0], 3);
+          document.addEventListener("DOMContentLoaded", function() {
+              // ----------------------------------------------------------------------------
+              // Map preparation
+              // ----------------------------------------------------------------------------
+              // Load necessary data
+              Utils.prepareMap().then(arr => {
+                  const metaData = arr[0];
+                  const numCountries = metaData['num_countries']
+                  const countriesData = arr[1];
 
-            // Add a tile layer (the map background)
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
+              const map = L.map('map').setView([0, 0], 3);
 
-            // ----------------------------------------------------------------------------
-            // Functions to change the map view
-            // ----------------------------------------------------------------------------
-            const CustomControl = L.Control.extend({
-                onAdd: function() {
-                    const container = L.DomUtil.create('div', 'custom-control');
-                    L.DomEvent.disableClickPropagation(container); // Prevent clicks on the control from affecting the map
+              // Add a tile layer (the map background)
+              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                  maxZoom: 19,
+                  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              }).addTo(map);
 
-                    const e4d4Button = L.DomUtil.create('button', '', container);
-                    e4d4Button.innerHTML = 'E4/D4 split';
-                    e4d4Button.addEventListener('click', () => switchToE4D4());
+              // Add base view to map
+              console.log(countriesData)
+              countryLayer = L.geoJSON(countriesData, {
+                  onEachFeature: Countries.onEachCountryBase,
+                  style: {
+                      fillColor: '#F28F3A',
+                      weight: 2,
+                      opacity: 1,
+                      color: 'white',
+                      fillOpacity: 0.7
+                  }
+              }).addTo(map);
 
-                    const baseButton = L.DomUtil.create('button', '', container);
-                    baseButton.innerHTML = 'Base';
-                    baseButton.addEventListener('click', () => switchToBase());
+              // ----------------------------------------------------------------------------
+              // Functions to change the map view (base vs. e4d4)
+              // ----------------------------------------------------------------------------
+              const CustomControl = L.Control.extend({
+                  onAdd: function() {
+                      const container = L.DomUtil.create('div', 'custom-control');
+                      L.DomEvent.disableClickPropagation(container); // Prevent clicks on the control from affecting the map
 
-                    return container;
-                    },
-                options: {
-                    position: 'bottomright'
-                }
-            });
+                      const e4d4Button = L.DomUtil.create('button', '', container);
+                      e4d4Button.innerHTML = 'E4/D4 split';
+                      e4d4Button.addEventListener('click', () => switchToE4D4());
 
-            map.addControl(new CustomControl());
+                      const baseButton = L.DomUtil.create('button', '', container);
+                      baseButton.innerHTML = 'Base';
+                      baseButton.addEventListener('click', () => switchToBase());
 
-            function switchToBase() {
-                if (countryLayer){
-                    countryLayer.remove();
-                }
-                Countries.fetchCountries().then(countriesData => {
-                    countryLayer = L.geoJSON(countriesData, {
-                        onEachFeature: Countries.onEachCountryBase,
-                        style: {
-                            fillColor: '#F28F3A',
-                            weight: 2,
-                            opacity: 1,
-                            color: 'white',
-                            fillOpacity: 0.7
-                        }
-                    }).addTo(map);
-                });
-            }
+                      return container;
+                      },
+                  options: {
+                      position: 'bottomright'
+                  }
+              });
 
-            function switchToE4D4() {
-                if (countryLayer){
-                    countryLayer.remove();
-                }
-                Countries.fetchCountries().then(countriesData => {
-                    countryLayer = L.geoJSON(countriesData, {
-                        onEachFeature: Countries.onEachCountryBase,
-                        style: {
-                            fillColor: '#13553A',
-                            weight: 2,
-                            opacity: 1,
-                            color: 'white',
-                            fillOpacity: 0.7
-                        }
-                    }).addTo(map);
-                });
-            }
+              map.addControl(new CustomControl());
 
-
-            // ----------------------------------------------------------------------------
-            // Add base view to map
-            // ----------------------------------------------------------------------------
-            // Add country GeoJSON data to the map
-            Countries.fetchCountries().then(countriesData => {
-                countryLayer = L.geoJSON(countriesData, {
-                    onEachFeature: Countries.onEachCountryBase,
-                    style: {
-                        fillColor: '#F28F3A',
-                        weight: 2,
-                        opacity: 1,
-                        color: 'white',
-                        fillOpacity: 0.7
-                    }
-                }).addTo(map);
-            });
-        });
+              function switchToBase() {
+                  if (countryLayer){
+                      countryLayer.remove();
+                  }
+                  countryLayer = L.geoJSON(countriesData, {
+                      onEachFeature: Countries.onEachCountryBase,
+                      style: {
+                          fillColor: '#F28F3A',
+                          weight: 2,
+                          opacity: 1,
+                          color: 'white',
+                          fillOpacity: 0.7
+                      }
+                  }).addTo(map);
+              }
+              function switchToE4D4() {
+                  if (countryLayer){
+                      countryLayer.remove();
+                  }
+                  countryLayer = L.geoJSON(countriesData, {
+                      onEachFeature: Countries.onEachCountryBase,
+                      style: {
+                          fillColor: '#FFFFFF',
+                          weight: 2,
+                          opacity: 1,
+                          color: 'white',
+                          fillOpacity: 0.7
+                      }
+                  }).addTo(map);
+              }
+          });
+      });
     </script>
 </body>
 </html>
