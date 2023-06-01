@@ -39,9 +39,9 @@ make parse_countries JSON_PATH=./data/players/player_data_lookup_only_positive.j
 #### Add the player counts to each country
 After downloading the `countries.geojson` file and parsing the country information for each player, run the following command to add player counts to each country in the geoJSON file:
 ```
-make expand_geojson
+make enrich_geojson
 ```
 If you want to specify the Dataframe to be used, you can define the path as follows:
 ```
-make expand_geojson DF_PATH=/path/to/df.parquet.gzip
+make enrich_geojson DF_PATH=/path/to/df.parquet.gzip
 ```
