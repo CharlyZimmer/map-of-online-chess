@@ -29,21 +29,16 @@
     }
 
     Colors.generateColor = function (colorStart,colorEnd,colorCount){
-
-        // The beginning of your gradient
+        // Define beginning and end of gradient as well as number of colors to find
         var start = convertToRGB (colorStart);
-
-        // The end of your gradient
         var end   = convertToRGB (colorEnd);
-
-        // The number of colors to compute
         var len = colorCount;
 
         //Alpha blending amount
         var alpha = 0.0;
 
+        // Loop len times and return the colors
         var saida = [];
-
         for (i = 0; i < len; i++) {
             var c = [];
             alpha += (1.0/len);

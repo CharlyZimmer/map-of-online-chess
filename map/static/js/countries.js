@@ -15,41 +15,47 @@
         }
     };
 
+    // --------------------------------------------------------------------------------------------------------------
+    // Base function: Show all countries, highlight them with hovering and show name and player numbers on click
+    // --------------------------------------------------------------------------------------------------------------
     // Function to interact with countries via the cursor
-    Countries.onEachCountry = function (feature, layer) {
+    Countries.onEachCountryBase = function (feature, layer) {
         layer.on({
-            click: countryClick,
+            click: countryClickBase,
             mouseover: highlightFeature,
             mouseout: resetHighlight
         });
     }
-
-    // Show country name when clicking
-    function countryClick(e) {
+    // Show country name and player count when clicking
+    function countryClickBase(e) {
         alert(e.target.feature.properties.ADMIN + ": " + e.target.feature.properties.PLAYER_COUNT + " players");
     }
 
+
+    // --------------------------------------------------------------------------------------------------------------
+    // E4/D4 function: Show all countries with a shade for their
+    // --------------------------------------------------------------------------------------------------------------
+
+
+
+    // --------------------------------------------------------------------------------------------------------------
+    // Helper functions
+    // --------------------------------------------------------------------------------------------------------------
     // Highlight the country when hovered
     function highlightFeature(e) {
         var layer = e.target;
         layer.setStyle({
-            weight: 3,
-            fillColor: '#666',
-            dashArray: '',
-            fillOpacity: 0.7
+            fillOpacity: 1
         });
 
         if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
             layer.bringToFront();
         }
     }
-
     // Reset the country style when the mouse leaves
     function resetHighlight(e) {
         var layer = e.target;
         layer.setStyle({
-            weight: 2,
-            fillColor: '#F28F3A',
             fillOpacity: 0.7
         });
     }
