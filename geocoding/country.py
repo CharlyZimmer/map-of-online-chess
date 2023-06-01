@@ -5,7 +5,7 @@ from pandas import DataFrame
 from pycountry import countries
 from ratelimiter import RateLimiter
 from tqdm import tqdm
-from typing import Dict, Union, Tuple
+from typing import Dict, Union
 
 
 class JSONParser:

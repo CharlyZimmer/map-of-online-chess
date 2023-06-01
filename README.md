@@ -33,7 +33,7 @@ Run the following make command with the required arguments:
 - `USER_AGENT`: User agent to use with Nominatim (e.g. your mail-address)
 
 ```
-make parse_countries JSON_PATH=player_data_lookup_only_positive.json USER_AGENT='[NAME]@uni-leipzig.de'
+make parse_countries JSON_PATH=./data/players/player_data_lookup_only_positive.json USER_AGENT='[NAME]@uni-leipzig.de'
 ```
 
 #### Add the player counts to each country
