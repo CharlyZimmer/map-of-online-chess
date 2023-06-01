@@ -56,7 +56,7 @@ class EnrichGeoJSON:
         # TODO: Remove in favor of correct approach
         import random
         def random_e4_d4(row):
-            e4 = max(0.15, min(1.0, random.gauss(0.6, 0.1)))
+            e4 = max(0.15, min(1.0, random.gauss(0.6, 0.05)))
             row['e4'] = e4
             row['d4'] = 0.85 - e4
             return row
@@ -84,8 +84,8 @@ class EnrichGeoJSON:
         for country_feature in tqdm.tqdm(self.country_json['features'], desc='Adding e4/d4 information to countries'):
             properties = country_feature['properties']
 
-            # If no information is available for a country, return num_countries, 'unknown', 'unknown'
-            country_tuple = opening_dict.get(properties['ISO_A3'], (self.num_countries, 'unknown', 'unknown'))
+            # If no information is available for a country, return num_countries, 0, 0
+            country_tuple = opening_dict.get(properties['ISO_A3'], (self.num_countries, 0, 0))
             properties['E4_D4_POS'] = country_tuple[0]
             properties['E4'] = country_tuple[1]
             properties['D4'] = country_tuple[2]

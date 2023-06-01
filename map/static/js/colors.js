@@ -51,6 +51,31 @@
         }
         return saida;
     }
+
+    Colors.getE4D4Gradient = function (numCountries) {
+        const e4Countries = Math.round(numCountries / 2);
+        const d4Countries = numCountries - e4Countries;
+
+        // Create one joint gradient from blue to white to red; Add grey (878586) for unknown values
+        var e4Gradient = Colors.generateColor('#ffffff', '#0069b4', e4Countries);
+        var d4Gradient = Colors.generateColor('#e5232e', '#ffffff', d4Countries);
+        var e4d4Gradient = e4Gradient.concat(d4Gradient);
+        e4d4Gradient.push('878586');
+
+        return e4d4Gradient;
+    };
+
+    Colors.countryStyle = function (feature, gradient){
+        return {
+            fillColor: '#' + gradient[feature.properties.E4_D4_POS],
+            weight: 2,
+            opacity: 1,
+            color: 'grey',
+            fillOpacity: 0.7
+        };
+    }
+
+
     global.Colors = Colors;
     })
 (window);

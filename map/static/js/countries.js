@@ -16,7 +16,7 @@
     };
 
     // --------------------------------------------------------------------------------------------------------------
-    // Base function: Show all countries, highlight them with hovering and show name and player numbers on click
+    // Base function: Highlight countries with hovering and show name and player numbers on click
     // --------------------------------------------------------------------------------------------------------------
     // Function to interact with countries via the cursor
     Countries.onEachCountryBase = function (feature, layer) {
@@ -31,6 +31,21 @@
         alert(e.target.feature.properties.ADMIN + ": " + e.target.feature.properties.PLAYER_COUNT + " players");
     }
 
+    // --------------------------------------------------------------------------------------------------------------
+    // E4D4 function: In addition to base functions, also show E4 and D4 values on click
+    // --------------------------------------------------------------------------------------------------------------
+    Countries.onEachCountryE4D4 = function (feature, layer) {
+        layer.on({
+            click: countryClickE4D4,
+            mouseover: highlightFeature,
+            mouseout: resetHighlight
+        });
+    }
+    function countryClickE4D4(e) {
+        alert(e.target.feature.properties.ADMIN + ": " + e.target.feature.properties.PLAYER_COUNT + " players\n" +
+            "- E4 share: " + Math.round(e.target.feature.properties.E4 * 1000) / 10 + "%\n" +
+            "- D4 share: " + Math.round(e.target.feature.properties.D4 * 1000) / 10 + "%");
+    }
 
     // --------------------------------------------------------------------------------------------------------------
     // Helper functions
