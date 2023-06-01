@@ -24,6 +24,8 @@ class EnrichGeoJSON:
         with open(geojson_path, 'r') as file:
             self.country_json = json.load(file)
 
+        self.num_countries = len(self.player_df.groupby('ISO_A3').count())
+
     def _download_geojson(self, geojson_path: str):
         import wget
         print(f'No file {geojson_path} found. Downloading countries.geojson to the specified path...')
@@ -74,17 +76,16 @@ class EnrichGeoJSON:
         opening_df = pd.concat([norm_e4_share, country_e4, country_d4], axis=1)
         opening_dict = {country: (position, e4, d4)
                         for country, position, e4, d4 in zip(opening_df.index,
-                                                             range(0, len(opening_df)),
+                                                             range(0, self.num_countries),
                                                              opening_df.e4,
                                                              opening_df.d4)}
-
-        # TODO: Output number of countries to reference midpoint in map application
-        mid_point = len(opening_df) // 2
 
         # Add the opening information to each country
         for country_feature in tqdm.tqdm(self.country_json['features'], desc='Adding e4/d4 information to countries'):
             properties = country_feature['properties']
-            country_tuple = opening_dict.get(properties['ISO_A3'], (mid_point, 'n/a', 'n/a'))
+
+            # If no information is available for a country, return num_countries, 'unknown', 'unknown'
+            country_tuple = opening_dict.get(properties['ISO_A3'], (self.num_countries, 'unknown', 'unknown'))
             properties['E4_D4_POS'] = country_tuple[0]
             properties['E4'] = country_tuple[1]
             properties['D4'] = country_tuple[2]
@@ -95,6 +96,18 @@ class EnrichGeoJSON:
         # Save the updated GEOJSON
         with open(self.geojson_path, 'w') as file:
             json.dump(self.country_json, file)
+
+        # Save num_countries to be referenced by the map application
+        meta_json_path = './map/static/json/enrichment_metadata.json'
+        if os.path.isfile(meta_json_path):
+            with open(meta_json_path, 'r') as file:
+                meta_json = json.load(file)
+        else:
+            meta_json = {}
+        meta_json['num_countries'] = self.num_countries
+        with open(meta_json_path, 'w') as file:
+            json.dump(meta_json, file)
+
         print(f'Saved enriched geoJSON to {self.geojson_path}\n')
 
 
