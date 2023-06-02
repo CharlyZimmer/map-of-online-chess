@@ -38,10 +38,11 @@
           // Load necessary data
           Utils.prepareMap().then(arr => {
               const metaData = arr[0];
-              const numCountries = metaData['num_countries']
+              const e4Positions = metaData['e4_positions']
+              const d4Positions = metaData['d4_positions']
               const countriesData = arr[1];
 
-              var e4d4Gradient = Colors.getE4D4Gradient(numCountries);
+              var e4d4Gradient = Colors.getE4D4Gradient(e4Positions, d4Positions);
 
               // Add a tile layer (the map background)
               const map = L.map('map', {

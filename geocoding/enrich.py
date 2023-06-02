@@ -24,7 +24,14 @@ class EnrichGeoJSON:
         with open(geojson_path, 'r') as file:
             self.country_json = json.load(file)
 
-        self.num_countries = len(self.player_df.groupby('ISO_A3').count())
+        # Store num_countries to be referenced by the map application
+        self.meta_json = {}
+        self.meta_json_path = '/'.join(self.geojson_path.split('/')[:-1]) + '/enrichment_metadata.json'
+        if os.path.isfile(self.meta_json_path):
+            with open(self.meta_json_path, 'r') as file:
+                self.meta_json = json.load(file)
+
+        self.meta_json['num_countries'] = len(self.player_df.groupby('ISO_A3').count())
 
     def _download_geojson(self, geojson_path: str):
         import wget
@@ -48,47 +55,85 @@ class EnrichGeoJSON:
 
     def add_e4_d4_split(self):
         '''
-        Assigns each country a percentage for e4 and d4 openings.
-        Currently averages on player level, meaning that the number of games per player is not regarded
-        (TODO: Potentially update this)
-        Dummy function; Will be used to add actual E4/D4 information per country to the countries.geojson
+        Get the output DataFrame from _calculate_e4d4_split and add it to the countries.geojson
         '''
-        # TODO: Remove in favor of correct approach
-        import random
-        def random_e4_d4(row):
-            e4 = max(0.15, min(1.0, random.gauss(0.6, 0.05)))
-            row['e4'] = e4
-            row['d4'] = 0.85 - e4
-            return row
-        self.player_df = self.player_df.apply(random_e4_d4, axis=1)
+        opening_df = self._calculate_e4d4_split()
 
-        country_e4 = self.player_df.groupby('ISO_A3')['e4'].mean()
-        country_d4 = self.player_df.groupby('ISO_A3')['d4'].mean()
+        self.meta_json['d4_positions'] = opening_df.loc[opening_df['norm_e4_share'] <= 0]['position'].max() - 1
+        self.meta_json['e4_positions'] = opening_df['position'].max() - self.meta_json['d4_positions']
 
-        # TODO: Check but, the following code can probably stay the same
-        # Bring values on one scale and normalize using mean and std:
-        # - Positive values: e4 is more popular
-        # - Negative values: d4 is more popular
-        e4_share = country_e4 / (country_e4 + country_d4)
-        norm_e4_share = ((e4_share - e4_share.mean()) / e4_share.std()).sort_values()
+        print(self.meta_json['d4_positions'])
+        print(opening_df.loc[opening_df['norm_e4_share'] <= 0])
+        print(self.meta_json['e4_positions'])
+        print(opening_df.loc[opening_df['norm_e4_share'] > 0])
 
-        # Combine all information into a single df and create a dictionary to update the json
-        opening_df = pd.concat([norm_e4_share, country_e4, country_d4], axis=1)
-        opening_dict = {country: (position, e4, d4)
-                        for country, position, e4, d4 in zip(opening_df.index,
-                                                             range(0, self.num_countries),
-                                                             opening_df.e4,
-                                                             opening_df.d4)}
+        opening_dict = {
+            country: (position, e4, d4) for country, position, e4, d4
+            in zip(opening_df.index,
+                   opening_df.position,
+                   opening_df.e4,
+                   opening_df.d4)
+                        }
 
         # Add the opening information to each country
         for country_feature in tqdm.tqdm(self.country_json['features'], desc='Adding e4/d4 information to countries'):
             properties = country_feature['properties']
 
-            # If no information is available for a country, return num_countries, 0, 0
-            country_tuple = opening_dict.get(properties['ISO_A3'], (self.num_countries, 0, 0))
+            # If no information is available for a country, return 0, 0, 0
+            country_tuple = opening_dict.get(properties['ISO_A3'], (0, 0, 0))
             properties['E4_D4_POS'] = country_tuple[0]
             properties['E4'] = country_tuple[1]
             properties['D4'] = country_tuple[2]
+
+
+    def _calculate_e4d4_split(self) -> pd.DataFrame:
+        '''
+        Assigns each country a percentage for e4 and d4 openings.
+        Currently averages on player level, meaning that the number of games per player is not regarded
+        (TODO: Potentially update this)
+        Dummy function; Will be used to add actual E4/D4 information per country to the countries.geojson
+        :return:    A DataFrame with three columns: norm_e4_share, country_e4, country_d4
+        '''
+        # TODO: Remove in favor of correct approach
+        import random
+        def random_e4_d4(row):
+            e4 = max(0.10, min(1.0, random.gauss(0.6, 0.10)))
+            row['e4'] = e4
+            row['d4'] = 0.9 - e4
+            return row
+
+        self.player_df = self.player_df.apply(random_e4_d4, axis=1)
+
+        country_e4 = self.player_df.groupby('ISO_A3')['e4'].mean()
+        country_d4 = self.player_df.groupby('ISO_A3')['d4'].mean()
+
+        # TODO: The following code can probably stay the same (Confirm)
+        # Bring values on one scale and normalize using mean and std:
+        # - Positive values: e4 is more popular -> Number stored in num_e4
+        # - Negative values: d4 is more popular -> Number stored in num_d4
+        e4_share = country_e4 / (country_e4 + country_d4)
+        norm_e4_share = ((e4_share - e4_share.mean()) / e4_share.std()).sort_values()
+
+        # Get the position corresponding to a normalized share
+        positions = self._assign_pos_to_share(share_series=norm_e4_share)
+
+        # Combine all information into a single df
+        opening_df = pd.concat([norm_e4_share, positions, country_e4, country_d4], axis=1)
+        opening_df.rename(columns={0: 'norm_e4_share'}, inplace=True)
+        opening_df.rename(columns={1: 'position'}, inplace=True)
+
+        return opening_df
+
+    @staticmethod
+    def _assign_pos_to_share(share_series: pd.Series, num_positions: int = 500):
+        share_max = share_series.max()
+        share_min = share_series.min()
+        diff = share_max - share_min
+        step = diff / num_positions
+
+        # Return the rounded value as position (1 is added as position 0 is reserved for unknown values)
+        return share_series.apply(lambda x: round((x-share_min)/step)+1)
+
 
 
 
@@ -96,17 +141,8 @@ class EnrichGeoJSON:
         # Save the updated GEOJSON
         with open(self.geojson_path, 'w') as file:
             json.dump(self.country_json, file)
-
-        # Save num_countries to be referenced by the map application
-        meta_json_path = './map/static/json/enrichment_metadata.json'
-        if os.path.isfile(meta_json_path):
-            with open(meta_json_path, 'r') as file:
-                meta_json = json.load(file)
-        else:
-            meta_json = {}
-        meta_json['num_countries'] = self.num_countries
-        with open(meta_json_path, 'w') as file:
-            json.dump(meta_json, file)
+        with open(self.meta_json_path, 'w') as file:
+            json.dump(self.meta_json, file)
 
         print(f'Saved enriched geoJSON to {self.geojson_path}\n')
 

@@ -52,15 +52,15 @@
         return saida;
     }
 
-    Colors.getE4D4Gradient = function (numCountries) {
-        const e4Countries = Math.round(numCountries / 2);
-        const d4Countries = numCountries - e4Countries;
+    Colors.getE4D4Gradient = function (e4Positions, d4Positions) {
+        // Create one joint gradient from blue to white to red; Add grey (878586) in front of array for unknown values
+        var d4Gradient = Colors.generateColor('#ffffff', '#00aedb', e4Positions);
+        var e4Gradient = Colors.generateColor('#f37735', '#ffffff', d4Positions);
+        var e4d4Gradient = d4Gradient.concat(e4Gradient);
+        console.log(e4d4Gradient)
+        e4d4Gradient.unshift('878586');
 
-        // Create one joint gradient from blue to white to red; Add grey (878586) for unknown values
-        var e4Gradient = Colors.generateColor('#ffffff', '#0069b4', e4Countries);
-        var d4Gradient = Colors.generateColor('#e5232e', '#ffffff', d4Countries);
-        var e4d4Gradient = e4Gradient.concat(d4Gradient);
-        e4d4Gradient.push('878586');
+        console.log(e4d4Gradient)
 
         return e4d4Gradient;
     };
@@ -71,7 +71,7 @@
             weight: 2,
             opacity: 1,
             color: 'grey',
-            fillOpacity: 0.7
+            fillOpacity: 0.9
         };
     }
 

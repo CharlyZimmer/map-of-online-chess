@@ -37,14 +37,35 @@
     Countries.onEachCountryE4D4 = function (feature, layer) {
         layer.on({
             click: countryClickE4D4,
-            mouseover: highlightFeature,
-            mouseout: resetHighlight
+            mouseover: highlightFeatureE4D4,
+            mouseout: resetHighlightE4D4
         });
     }
     function countryClickE4D4(e) {
         alert(e.target.feature.properties.ADMIN + ": " + e.target.feature.properties.PLAYER_COUNT + " players\n" +
             "- E4 share: " + Math.round(e.target.feature.properties.E4 * 1000) / 10 + "%\n" +
             "- D4 share: " + Math.round(e.target.feature.properties.D4 * 1000) / 10 + "%");
+    }
+
+    function highlightFeatureE4D4(e){
+        var layer = e.target;
+        layer.setStyle({
+            fillOpacity: 1,
+            weight: 3,
+            color: 'white',
+        });
+        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+            layer.bringToFront();
+        }
+    }
+
+    function resetHighlightE4D4(e) {
+        var layer = e.target;
+        layer.setStyle({
+            fillOpacity: 0.9,
+            weight: 2,
+            color: 'grey',
+        });
     }
 
     // --------------------------------------------------------------------------------------------------------------
