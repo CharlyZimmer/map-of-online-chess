@@ -37,8 +37,8 @@
     Countries.onEachCountryE4D4 = function (feature, layer) {
         layer.on({
             click: countryClickE4D4,
-            mouseover: highlightFeatureE4D4,
-            mouseout: resetHighlightE4D4
+            mouseover: highlightFeatureOpening,
+            mouseout: resetHighlightOpening
         });
     }
     function countryClickE4D4(e) {
@@ -47,26 +47,23 @@
             "- D4 share: " + Math.round(e.target.feature.properties.D4 * 1000) / 10 + "%");
     }
 
-    function highlightFeatureE4D4(e){
-        var layer = e.target;
-        layer.setStyle({
-            fillOpacity: 1,
-            weight: 3,
-            color: 'white',
+    // --------------------------------------------------------------------------------------------------------------
+    // Opening function: In addition to base functions, also show the probability for an opening on click
+    // --------------------------------------------------------------------------------------------------------------
+    Countries.onEachCountryOpening = function (feature, layer, openingName) {
+        layer.on({
+            click: (e) => countryClickOpening(e, openingName),
+            mouseover: highlightFeatureOpening,
+            mouseout: resetHighlightOpening
         });
-        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-            layer.bringToFront();
-        }
+    }
+    function countryClickOpening(e, openingName) {
+        var cleanedOpeningName = Utils.cleanOpeningName(openingName);
+
+        alert(e.target.feature.properties.ADMIN + ": " + e.target.feature.properties.PLAYER_COUNT + " players\n" +
+            cleanedOpeningName + " probability: " + Math.round(e.target.feature.properties[openingName] * 1000) / 10 + "%\n");
     }
 
-    function resetHighlightE4D4(e) {
-        var layer = e.target;
-        layer.setStyle({
-            fillOpacity: 0.9,
-            weight: 2,
-            color: 'grey',
-        });
-    }
 
     // --------------------------------------------------------------------------------------------------------------
     // Helper functions
@@ -89,5 +86,27 @@
             fillOpacity: 0.7
         });
     }
+
+    function highlightFeatureOpening(e){
+        var layer = e.target;
+        layer.setStyle({
+            fillOpacity: 1,
+            weight: 3,
+            color: 'white',
+        });
+        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+            layer.bringToFront();
+        }
+    }
+
+    function resetHighlightOpening(e) {
+        var layer = e.target;
+        layer.setStyle({
+            fillOpacity: 0.9,
+            weight: 2,
+            color: 'grey',
+        });
+    }
+
     global.Countries = Countries;
 })(window);

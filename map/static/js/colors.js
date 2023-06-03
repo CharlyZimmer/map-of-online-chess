@@ -53,21 +53,28 @@
     }
 
     Colors.getE4D4Gradient = function (e4Positions, d4Positions) {
-        // Create one joint gradient from blue to white to red; Add grey (878586) in front of array for unknown values
-        var d4Gradient = Colors.generateColor('#ffffff', '#00aedb', e4Positions);
-        var e4Gradient = Colors.generateColor('#f37735', '#ffffff', d4Positions);
+        // Create one joint gradient from blue to white to orange; Add grey (878586) in front of array for unknown values
+        var d4Gradient = Colors.generateColor('#ffffff', '#00aedb', d4Positions);
+        var e4Gradient = Colors.generateColor('#f37735', '#ffffff', e4Positions);
         var e4d4Gradient = d4Gradient.concat(e4Gradient);
-        console.log(e4d4Gradient)
         e4d4Gradient.unshift('878586');
-
-        console.log(e4d4Gradient)
 
         return e4d4Gradient;
     };
 
-    Colors.countryStyle = function (feature, gradient){
+    Colors.getOpeningGradient = function (negPositions, posPositions) {
+        // Create one joint gradient from blue to white to red; Add grey (878586) in front of array for unknown values
+        var negGradient = Colors.generateColor('#ffffff', '#0000ff', negPositions);
+        var posGradient = Colors.generateColor('#ff0000', '#ffffff', posPositions);
+        var openingGradient = negGradient.concat(posGradient);
+        openingGradient.unshift('878586');
+
+        return openingGradient;
+    };
+
+    Colors.countryStyle = function (feature, gradient, opening_name){
         return {
-            fillColor: '#' + gradient[feature.properties.E4_D4_POS],
+            fillColor: '#' + gradient[feature.properties[opening_name+ '_POS']],
             weight: 2,
             opacity: 1,
             color: 'grey',

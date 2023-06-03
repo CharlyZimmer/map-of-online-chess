@@ -21,5 +21,25 @@
 
         return [metaData, countriesData]
     }
+
+    Utils.cleanOpeningName = openingName =>
+        openingName.replaceAll(/\S*/g, word =>
+            `${word.slice(0, 1)}${word.slice(1).toLowerCase()}`
+                .replaceAll('_', ' ')
+        );
+
+    Utils.openingDropdown = function (openings){
+        var dropdown = document.createElement("select");
+        dropdown.id = "openingDropdown";
+
+        openings.forEach(function(opening){
+           var newOption = document.createElement("option");
+           newOption.value = opening;
+           newOption.text = Utils.cleanOpeningName(opening);
+           dropdown.add(newOption);
+        });
+        return dropdown;
+    }
+
     global.Utils = Utils;
 })(window);
