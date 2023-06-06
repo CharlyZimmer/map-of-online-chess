@@ -1,171 +1,35 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Map of Online Chess</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="" />
-    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
+        integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
+        integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"
+        integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2"
+        crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css"
+        integrity="sha384-q94+BZtLrkL1/ohfjR8c6L+A6qzNH9R2hBLwyoAfu3i/WCvQjzL2RQJ3uNHDISdU" crossorigin="anonymous">
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"
+        integrity="sha384-8Vi8VHwn3vjQ9eUHUxex3JSN/NFqUg3QbPyX8kWyb93+8AC/pPWTzj+nHtbC5bxD"
+        crossorigin="anonymous"></script>
     <script src="/static/js/countries.js"></script>
     <script src="/static/js/colors.js"></script>
     <script src="/static/js/utilities.js"></script>
-  <style type="text/css">
-      body{
-        margin: 0;
-        padding: 0;
-      }
-      #map {
-        width: 100vw;
-        height: 100vh;
-      }
-      #openingDropdown{
-          position: absolute;
-          top: 20px; /* adjust to desired vertical position */
-          right: 20px; /* adjust to desired horizontal position */
-          z-index: 1000; /* ensure dropdown appears on top of map */
-      }
-
-      .custom-control {
-          background-color: white;
-          padding: 10px;
-          border-radius: 10px;
-          box-shadow: 0 1px 5px rgba(0, 0, 0, 0.65);
-      }
-      .custom-control label {
-          display: block;
-          margin-bottom: 5px;
-      }
-    </style>
+    <link rel="stylesheet" href="/static/css/styles.css">
 </head>
+
 <body>
-  <div id="map"></div>
-  <select id="openingDropdown"></select>
-  <script>
-      document.addEventListener("DOMContentLoaded", function() {
-          // ----------------------------------------------------------------------------
-          // Map preparation
-          // ----------------------------------------------------------------------------
-          // Load necessary data
-          Utils.prepareMap().then(arr => {
-              const metaData = arr[0];
+    <div class="container">
+        <div id="map"></div>
+        <div id="board"></div>
+        <div id="header"></div>
+    </div>
+    <select id="openingDropdown"></select>
 
-              // Get the names of all recorded openings as well as the gradients
-              // (Based on the positions with below and above average probability for each opening)
-              const openings = metaData['openings'];
-              let openingGradients = {};
-              for (let i = 0; i < openings.length; i++) {
-                  var name = openings[i];
-                  var negPositions = metaData[name + '_neg_positions']
-                  var posPositions = metaData[name + '_pos_positions']
-                  openingGradients[name] = Colors.getOpeningGradient(negPositions, posPositions)
-              }
-
-              // TODO: Make dropdown invisible and select opening from dropdown
-              var openingDropdown = Utils.openingDropdown(openings);
-              openingDropdown.style.display = 'block';
-              var openingName = 'SICILIAN_DEFENSE';
-
-              // e4/d4 information
-              const e4Positions = metaData['e4_positions'];
-              const d4Positions = metaData['d4_positions'];
-              const countriesData = arr[1];
-              var e4d4Gradient = Colors.getE4D4Gradient(e4Positions, d4Positions);
-
-              // Add a tile layer (the map background)
-              const map = L.map('map', {
-                  worldCopyJump: true})
-                  .setView([0, 0], 3);
-              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                  maxZoom: 19,
-                  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              }).addTo(map);
-
-              // Add base view to map
-              countryLayer = L.geoJSON(countriesData, {
-                  onEachFeature: Countries.onEachCountryBase,
-                  style: {
-                      fillColor: '#F28F3A',
-                      weight: 2,
-                      opacity: 1,
-                      color: 'white',
-                      fillOpacity: 0.7
-                  }
-              }).addTo(map);
-
-              // ----------------------------------------------------------------------------
-              // Buttons to change the map view (base vs. e4d4)
-              // ----------------------------------------------------------------------------
-              const CustomControl = L.Control.extend({
-                  onAdd: function() {
-                      const container = L.DomUtil.create('div', 'custom-control');
-                      L.DomEvent.disableClickPropagation(container); // Prevent clicks on the control from affecting the map
-
-                      const baseButton = L.DomUtil.create('button', '', container);
-                      baseButton.innerHTML = 'Base';
-                      baseButton.addEventListener('click', () => switchToBase());
-
-                      const e4d4Button = L.DomUtil.create('button', '', container);
-                      e4d4Button.innerHTML = 'E4/D4 split';
-                      e4d4Button.addEventListener('click', () => switchToE4D4());
-
-                      const openingButton = L.DomUtil.create('button', '', container);
-                      openingButton.innerHTML = 'Openings';
-                      openingButton.addEventListener('click', () => switchToOpening());
-
-                      return container;
-                      },
-                  options: {
-                      position: 'bottomright'
-                  }
-              });
-
-              map.addControl(new CustomControl());
-
-
-              function switchToBase() {
-                  if (document.body.contains(openingDropdown)){
-                      document.body.removeChild(openingDropdown);
-                  }
-                  if (countryLayer){
-                      countryLayer.remove();
-                  }
-                  countryLayer = L.geoJSON(countriesData, {
-                      onEachFeature: Countries.onEachCountryBase,
-                      style: {
-                          fillColor: '#F28F3A',
-                          weight: 2,
-                          opacity: 1,
-                          color: 'white',
-                          fillOpacity: 0.7
-                      }
-                  }).addTo(map);
-              }
-
-              function switchToE4D4() {
-                  if (document.body.contains(openingDropdown)){
-                      document.body.removeChild(openingDropdown);
-                  }
-                  if (countryLayer){
-                      countryLayer.remove();
-                  }
-                  countryLayer = L.geoJSON(countriesData, {
-                      onEachFeature: Countries.onEachCountryE4D4,
-                      style: (feature) => Colors.countryStyle(feature, e4d4Gradient, 'E4_D4')
-                  }).addTo(map);
-              }
-
-              function switchToOpening() {
-                  document.body.appendChild(openingDropdown);
-                  if (countryLayer){
-                      countryLayer.remove();
-                  }
-                  countryLayer = L.geoJSON(countriesData, {
-                      onEachFeature: (feature, layer) => Countries.onEachCountryOpening(
-                          feature, layer, openingName
-                      ),
-                      style: (feature) => Colors.countryStyle(feature, openingGradients[openingName], openingName)
-                  }).addTo(map);
-              }
-          });
-      });
-    </script>
+    <script src="/static/js/main.js"></script>
 </body>
+
 </html>
