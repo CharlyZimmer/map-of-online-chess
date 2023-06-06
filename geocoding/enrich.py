@@ -4,7 +4,7 @@ import pandas as pd
 import tqdm
 
 class EnrichGeoJSON:
-    def __init__(self, df_path: str = './geocoding/player_data_lookup_only_positive.parquet.gzip',
+    def __init__(self, df_path: str = './data/geocoding/player_data_lookup_only_positive.parquet.gzip',
                 geojson_path: str ='./map/static/json/countries.geojson'):
         '''
         Initialize a EnrichGeoJSON instance using paths to the player dataframe and countries.geojson
@@ -60,8 +60,9 @@ class EnrichGeoJSON:
         '''
         opening_df = self._calculate_e4d4_split()
 
-        self.meta_json['d4_positions'] = opening_df.loc[opening_df['e4_share_standardized'] <= 0]['position'].max() - 1
-        self.meta_json['e4_positions'] = opening_df['position'].max() - self.meta_json['d4_positions']
+        self.meta_json['d4_positions'] = int(opening_df.loc[opening_df['e4_share_standardized'] <= 0]
+                                             ['position'].max() - 1)
+        self.meta_json['e4_positions'] = int(opening_df['position'].max() - self.meta_json['d4_positions'])
 
         opening_dict = {
             country: (position, e4, d4) for country, position, e4, d4
@@ -137,8 +138,10 @@ class EnrichGeoJSON:
         opening_df = self._calculate_opening(name)
 
         self.meta_json['openings'] = self.meta_json.get('openings', []) + [name]
-        self.meta_json[f'{name}_neg_positions'] = opening_df.loc[opening_df['standardized_prob'] <= 0]['position'].max() - 1
-        self.meta_json[f'{name}_pos_positions'] = opening_df['position'].max() - self.meta_json[f'{name}_neg_positions']
+        self.meta_json[f'{name}_neg_positions'] = int(opening_df.loc[opening_df['standardized_prob'] <= 0]
+                                                      ['position'].max() - 1)
+        self.meta_json[f'{name}_pos_positions'] = int(opening_df['position'].max() -
+                                                      self.meta_json[f'{name}_neg_positions'])
 
         opening_dict = {
             country: (position, prob) for country, position, prob
@@ -212,6 +215,7 @@ class EnrichGeoJSON:
         # Save the updated GEOJSON
         with open(self.geojson_path, 'w') as file:
             json.dump(self.country_json, file)
+
         with open(self.meta_json_path, 'w') as file:
             json.dump(self.meta_json, file)
 

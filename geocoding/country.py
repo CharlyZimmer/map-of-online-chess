@@ -65,14 +65,14 @@ class JSONParser:
         return row
 
     def get_country_ids(
-        self, countries_parquet="./geocoding/known_countries.parquet.gzip"
+        self, countries_parquet="./data/geocoding/known_countries.parquet.gzip"
     ):
         """
         Gets the Nominatim place_id of all countries in self.df.country.
         Known country information are reused and unknown requested via Nominatim
 
         :param countries_parquet:   (Optional) Path to the file containing country locations.
-                                    Default: './geocoding/known_countries.parquet.gzip'
+                                    Default: './data/geocoding/known_countries.parquet.gzip'
                                     Will be used to read known locations and write results after completion
         """
 
@@ -140,8 +140,7 @@ class JSONParser:
             self.parse_player_json()
             self.get_country_ids()
 
-        json_file_name = self.json_path.split("/")[-1]
-        out_path = "./geocoding/" + json_file_name.replace(".json", ".parquet.gzip")
+        out_path = self.json_path.replace('/players/', '/geocoding/').replace(".json", ".parquet.gzip")
         self.df.to_parquet(out_path, compression="gzip")
         print(f"Saved player data to {out_path}\n")
 
