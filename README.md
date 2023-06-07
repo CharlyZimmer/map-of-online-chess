@@ -45,3 +45,9 @@ If you want to specify the Dataframe to be used, you can define the path as foll
 ```
 make enrich_geojson DF_PATH=/path/to/df.parquet.gzip
 ```
+
+#### Install JavaScript Dependencies
+Make sure to have npm installed (https://www.npmjs.com/). Install the dependencies specified in package.json:
+```
+npm i
+```

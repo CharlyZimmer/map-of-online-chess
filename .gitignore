@@ -6,3 +6,6 @@
 # Exclude all geojson and parquet files
 *.geojson
 *.parquet.gzip
+
+# js libraries
+node_modules/

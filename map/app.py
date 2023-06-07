@@ -1,5 +1,6 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, send_file
 
+# app = Flask(__name__, template_folder="./templates", static_url_path="")
 app = Flask(__name__, template_folder="./templates")
 
 
@@ -18,6 +19,13 @@ def countries_geojson():
 def metadata():
     with open("./static/json/enrichment_metadata.json", "r") as file:
         return file.read()
+
+
+@app.route("/img/chesspieces/wikipedia/<string:piece>")
+def img(piece):
+    return send_file(
+        "./static/img/chesspieces/wikipedia/" + piece, mimetype="image/png"
+    )
 
 
 if __name__ == "__main__":

@@ -128,7 +128,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // chess board
 
-    var board = Chessboard('board', 'start')
+    var cfg = {
+        position: 'start',
+        showNotation: true,
+        draggable: true
+    };
+
+    // var game = new Chess()
+
+    var board = Chessboard('board', cfg);
 
 });
 
