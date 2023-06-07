@@ -1,6 +1,5 @@
 from flask import Flask, render_template, send_file
 
-# app = Flask(__name__, template_folder="./templates", static_url_path="")
 app = Flask(__name__, template_folder="./templates")
 
 

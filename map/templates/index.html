@@ -19,16 +19,21 @@
     <script src="/static/js/colors.js"></script>
     <script src="/static/js/utilities.js"></script>
     <link rel="stylesheet" href="/static/css/styles.css">
-    <!-- <script type="module">
-        import { Chess } from '/node_modules/chess.js/esm/chess.js'
-    </script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.js"></script>
 </head>
 
 <body>
     <div class="container">
         <div id="map"></div>
         <div id="board"></div>
-        <div id="header"></div>
+        <div id="header">
+            <label>Status:</label>
+            <div id="status"></div>
+            <label>FEN:</label>
+            <div id="fen"></div>
+            <label>PGN:</label>
+            <div id="pgn"></div>
+        </div>
     </div>
     <select id="openingDropdown"></select>
 
