@@ -7,7 +7,7 @@ import os
 
 dirname = os.path.dirname(__file__)
 pgn_path = os.path.join(
-    dirname, "../data/lichess/lichess_db_standard_rated_2013-02.pgn"
+    dirname, "../../data/lichess/lichess_db_standard_rated_2013-02.pgn"
 )
 pgn = open(pgn_path)
 num_games = len(pgn.read().split("[Event ")) - 1
@@ -23,7 +23,7 @@ players_batch = []
 games_batch = []
 player_data_buffer = []
 
-with open(os.path.join(dirname, "../data/players/player_data_lookup.json")) as f:
+with open(os.path.join(dirname, "../../data/players/player_data_lookup.json")) as f:
     # player_data_lookup = json.load(f)
     player_data_lookup = []
 
@@ -90,7 +90,7 @@ def augment():
     player_data_buffer = []
 
     with open(
-        os.path.join(dirname, "../data/players/player_data_lookup.json", "w")
+        os.path.join(dirname, "../../data/players/player_data_lookup.json", "w")
     ) as f:
         json.dump(player_data_lookup, f)
 
