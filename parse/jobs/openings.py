@@ -30,7 +30,7 @@ def process_game(game: chess.pgn.Game, opening_df: DataFrame, num_moves: int = 1
     :return:            Dictionary with the following keys:
                         - 'white':              Name of the white player
                         - 'black':              Name of the black player
-                        - 'matched_opening':    Name of a known opening (Or None)
+                        - 'matched_name':       Name of a known opening (Or None)
                         - 'matched_moves':      Moves of the known opening (Or None)
                         - 'original_name':      Name of the opening according to the game record
                         - 'original_moves':     First num_moves of the game
@@ -50,7 +50,7 @@ def process_game(game: chess.pgn.Game, opening_df: DataFrame, num_moves: int = 1
                                                name=opening_name,
                                                uci_str=uci_str)
 
-    return {'white': w, 'black': b, 'matched_opening': matched_name, 'matched_moves': matched_moves,
+    return {'white': w, 'black': b, 'matched_name': matched_name, 'matched_moves': matched_moves,
             'original_name': opening_name, 'original_moves': uci_str}
 
 def process_lines(lines):
@@ -69,7 +69,7 @@ def process_lines(lines):
     return list(games_with_delimiter)
 
 
-def run(file_name: str = 'lichess_db_standard_rated_2023-05.pgn', partitions=10):
+def run(file_name: str = 'test.pgn', partitions=10):
     # 0. Paths and directories
     pgn_path = PARSING_DIRECTORY / f'data/pgn/{file_name}'
     out_dir = PARSING_DIRECTORY / f'data/output/openings'
