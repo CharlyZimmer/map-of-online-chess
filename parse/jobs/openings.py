@@ -8,6 +8,33 @@ from typing import Dict
 from parse import PARSING_DIRECTORY
 from parse.utils.openings import OpeningLoader, match_opening
 
+class ChessRecordReader():
+    '''
+    Class to ensure that game lines are read together
+    '''
+    def __init__(self):
+        self.buff = ''
+        self.in_moves = False
+
+    def read_records(self, file_data):
+        records = []
+        line_iter = iter(file_data.decode('utf-8').splitlines())
+        for line in line_iter:
+            if line.startswith('[Event '):
+                if self.buff != '':
+                    records.append(self.buff)
+                    self.buff = ''
+                    self.in_moves = False
+            if not line.startswith('[') and not self.in_moves:
+                self.in_moves = True
+                self.buff = self.buff.rstrip() + '\n'
+            self.buff += line + '\n'
+
+        if self.buff != '':
+            records.append(self.buff)
+
+        return records
+
 
 def parse_pgn(pgn_text: str) -> chess.pgn.Game:
     '''
@@ -53,50 +80,36 @@ def process_game(game: chess.pgn.Game, opening_df: DataFrame, num_moves: int = 1
     return {'white': w, 'black': b, 'matched_name': matched_name, 'matched_moves': matched_moves,
             'original_name': opening_name, 'original_moves': uci_str}
 
-def process_lines(lines):
-    '''
-    Split lines into list of pgn game strings
-    :param lines:       List of string lines
-    :return:            List of game strings
-    '''
-    delimiter = '[Event '
-    lines = "\n".join(lines)
-    games_text = lines.split(delimiter)
-
-    non_empty_games = filter(lambda x: x != '', games_text)
-    games_with_delimiter = map(lambda x: delimiter + x, non_empty_games)
-
-    return list(games_with_delimiter)
-
+def group_game_lines(record):
+    chess_record_reader = ChessRecordReader()
+    return chess_record_reader.read_records(record[1])
 
 def run(file_name: str = 'test.pgn', partitions=10):
-    # 0. Paths and directories
+    # 0. Preparation
+    # Paths and directories
     pgn_path = PARSING_DIRECTORY / f'data/pgn/{file_name}'
     out_dir = PARSING_DIRECTORY / f'data/output/openings'
     out_path = out_dir / file_name.replace('.pgn', '.parquet.gzip')
     os.makedirs(os.path.dirname(out_dir), exist_ok=True)
 
-    # 1. Spark preparation
-    # Read the pgn file into spark
-    spark = SparkSession.builder.getOrCreate()
-    sc = spark.sparkContext
-    file = sc.textFile(str(pgn_path), minPartitions=partitions)
-
     # Get the openings df
     loader = OpeningLoader()
     opening_df = loader.df
 
-    # 2. Extract the game data
-    # Group the text lines into partitions and flatten them into a RDD to get text snippets for chess.pgn
-    lines_in_partitions = file.glom().map(process_lines)
-    games_text = lines_in_partitions.flatMap(lambda x: x)
+    # 1. Spark preparation
+    spark = SparkSession.builder.getOrCreate()
+    sc = spark.sparkContext
 
+    # 2. Extract the game data
+    # Load the data and ensure that lines of the same game are grouped together; 
     # Create RDD of games by parsing the pgn text
-    games = games_text.map(parse_pgn).filter(lambda game: game is not None)
+    data = sc.binaryFiles(str(pgn_path))\
+        .flatMap(group_game_lines)\
+        .repartition(numPartitions=partitions)
+    games = data.map(parse_pgn).filter(lambda game: game is not None)
 
     # 3. Extract the relevant information per game and save the results as a parquet file
-    parsed = games.map(lambda game: process_game(game=game, opening_df=opening_df))
-    parsed_df = parsed.toDF()
+    parsed_df = games.map(lambda game: process_game(game=game, opening_df=opening_df)).toDF()
     parsed_df.write.parquet(str(out_path))
 
     sc.stop()
