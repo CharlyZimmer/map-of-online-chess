@@ -1,4 +1,6 @@
-from pyspark.sql import SparkSession
+from pyspark import SparkConf, SparkContext
+from pyspark.sql import SparkSession, Window
+import pyspark.sql.functions as f
 import chess.pgn
 from io import StringIO
 import os
@@ -8,32 +10,60 @@ from typing import Dict
 from parse import PARSING_DIRECTORY
 from parse.utils.openings import OpeningLoader, match_opening
 
-class ChessRecordReader():
-    '''
-    Class to ensure that game lines are read together
-    '''
-    def __init__(self):
-        self.buff = ''
-        self.in_moves = False
+class ChessFileReader2:
+    def __init__(self, chunk_size=100):
+        self.chunk_size = chunk_size
 
-    def read_records(self, file_data):
-        records = []
-        line_iter = iter(file_data.decode('utf-8').splitlines())
-        for line in line_iter:
-            if line.startswith('[Event '):
-                if self.buff != '':
-                    records.append(self.buff)
-                    self.buff = ''
-                    self.in_moves = False
-            if not line.startswith('[') and not self.in_moves:
-                self.in_moves = True
-                self.buff = self.buff.rstrip() + '\n'
-            self.buff += line + '\n'
+    def read_games(self, file_path):
+        with open(file_path, "r") as file:
+            game = []
+            in_moves = False
+            for line in file:
+                if line.startswith('[Event '):
+                    if game:
+                        yield "".join(game)
+                        game = []
+                        in_moves = False
+                if not line.startswith('[') and not in_moves:
+                    in_moves = True
+                    game[-1] = game[-1].rstrip()
+                game.append(line)
+            if game:
+                yield "".join(game)
 
-        if self.buff != '':
-            records.append(self.buff)
 
-        return records
+
+class ChessFileReader:
+    def __init__(self, chunk_size=100):
+        self.chunk_size = chunk_size
+
+    def read_games(self, file_path):
+        game = ""
+        in_moves = False
+        game_count = 0
+        chunk = []
+
+        with open(file_path, "r") as file:
+            for line in file:
+                if line.startswith('[Event '):
+                    if game:
+                        chunk.append(game)
+                        game_count += 1
+                        game = ""
+                        in_moves = False
+                    if game_count == self.chunk_size:
+                        yield "".join(chunk)
+                        chunk = []
+                        game_count = 0
+                if not line.startswith('[') and not in_moves:
+                    in_moves = True
+                    game = game.rstrip() + '\n'
+                game += line
+        if game:
+            chunk.append(game)
+
+        if chunk:
+            yield "".join(chunk)
 
 
 def parse_pgn(pgn_text: str) -> chess.pgn.Game:
@@ -80,11 +110,8 @@ def process_game(game: chess.pgn.Game, opening_df: DataFrame, num_moves: int = 1
     return {'white': w, 'black': b, 'matched_name': matched_name, 'matched_moves': matched_moves,
             'original_name': opening_name, 'original_moves': uci_str}
 
-def group_game_lines(record):
-    chess_record_reader = ChessRecordReader()
-    return chess_record_reader.read_records(record[1])
 
-def run(file_name: str = 'test.pgn', partitions=10):
+def run(file_name: str = 'test_cleaned.pgn', partitions=10):
     # 0. Preparation
     # Paths and directories
     pgn_path = PARSING_DIRECTORY / f'data/pgn/{file_name}'
@@ -101,12 +128,10 @@ def run(file_name: str = 'test.pgn', partitions=10):
     sc = spark.sparkContext
 
     # 2. Extract the game data
-    # Load the data and ensure that lines of the same game are grouped together; 
+    # The pgn file needs to be produced by parse/scripts/rewrite_pgn.sh to get lines of game strings
     # Create RDD of games by parsing the pgn text
-    data = sc.binaryFiles(str(pgn_path))\
-        .flatMap(group_game_lines)\
-        .repartition(numPartitions=partitions)
-    games = data.map(parse_pgn).filter(lambda game: game is not None)
+    data = sc.textFile(str(pgn_path), minPartitions=partitions).map(lambda x: x.replace('###', '\n'))
+    games = data.map(lambda game_str: parse_pgn(game_str))
 
     # 3. Extract the relevant information per game and save the results as a parquet file
     parsed_df = games.map(lambda game: process_game(game=game, opening_df=opening_df)).toDF()
