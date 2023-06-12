@@ -1,21 +1,23 @@
 import json
 import pandas as pd
 from geopy.geocoders import Nominatim
+import os
 from pandas import DataFrame
 from pycountry import countries
 from ratelimiter import RateLimiter
 from tqdm import tqdm
 from typing import Dict, Union
 
+from src import DATA_DIRECTORY
 
 class JSONParser:
-    def __init__(self, json_path: str, user_agent: str):
+    def __init__(self, json_file: str = 'player_data_lookup_only_positive', user_agent: str = 'abc@test.de'):
         """
         Initialize the parser with the path to the JSON file and a user_agent for geocoding with Nominatim
-        :param json_path:   Path to the JSON-file to be parsed
+        :param json_file:   Name JSON-file to be parsed (In the data/players directory)
         :param user_agent:  String to use for identification with Nominatim (An email-address suffices)
         """
-        self.json_path = json_path
+        self.json_path = DATA_DIRECTORY / f'players/{json_file}'
         self.user_agent = user_agent
 
     def parse_player_json(self):
@@ -65,7 +67,7 @@ class JSONParser:
         return row
 
     def get_country_ids(
-        self, countries_parquet="./data/geocoding/known_countries.parquet.gzip"
+        self, countries_parquet="known_countries.parquet.gzip"
     ):
         """
         Gets the Nominatim place_id of all countries in self.df.country.
@@ -75,13 +77,16 @@ class JSONParser:
                                     Default: './data/geocoding/known_countries.parquet.gzip'
                                     Will be used to read known locations and write results after completion
         """
+        countries_dir = DATA_DIRECTORY / 'countries'
+        os.makedirs(countries_dir, exist_ok=True)
+        parquet_path = countries_dir / countries_parquet
 
         if not hasattr(self, "df"):
             self.parse_player_json()
 
         # Preparation: Try to load known locations, set geocoder and rate limiter
         try:
-            known_df = pd.read_parquet(countries_parquet)
+            known_df = pd.read_parquet(str(parquet_path))
             known_countries = known_df.set_index("country").to_dict(orient="index")
         except:
             known_countries = {}
@@ -104,10 +109,10 @@ class JSONParser:
         known_df = DataFrame(
             [{"country": country, **loc} for country, loc in known_countries.items()]
         )
-        known_df.to_parquet(countries_parquet, compression="gzip")
+        known_df.to_parquet(str(parquet_path), compression="gzip")
 
         print(
-            f"Added Nominatim country IDs for all players and saved known countries to {countries_parquet}."
+            f"Added Nominatim country IDs for all players and saved known countries to {parquet_path}."
         )
 
     @staticmethod
@@ -140,7 +145,7 @@ class JSONParser:
             self.parse_player_json()
             self.get_country_ids()
 
-        out_path = self.json_path.replace('/players/', '/geocoding/').replace(".json", ".parquet.gzip")
+        out_path = str(self.json_path).replace(".json", ".parquet.gzip")
         self.df.to_parquet(out_path, compression="gzip")
         print(f"Saved player data to {out_path}\n")
 
@@ -149,12 +154,12 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--json_path", type=str, required=True)
+    parser.add_argument("--json_file", type=str, required=True)
     parser.add_argument("--user_agent", type=str, required=True)
     args = parser.parse_args()
 
     print("\n" + "-" * 50)
-    print(f"Parsing player countries for {args.json_path}")
+    print(f"Parsing player countries for {args.json_file}")
     print("-" * 50)
-    parser = JSONParser(json_path=args.json_path, user_agent=args.user_agent)
+    parser = JSONParser(json_file=args.json_file, user_agent=args.user_agent)
     parser.write_df()

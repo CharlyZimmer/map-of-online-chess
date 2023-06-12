@@ -3,15 +3,18 @@ import os
 import pandas as pd
 import tqdm
 
+from src import DATA_DIRECTORY
+
 class EnrichGeoJSON:
-    def __init__(self, df_path: str = './data/geocoding/player_data_lookup_only_positive.parquet.gzip',
-                geojson_path: str ='./map/static/json/countries.geojson'):
+    def __init__(self, player_df: str = 'player_data_lookup_only_positive.parquet.gzip'):
         '''
         Initialize a EnrichGeoJSON instance using paths to the player dataframe and countries.geojson
-        :param df_path:         Path to the Dataframe containing player data
-        :param geojson_path:    Path to the geoJSON to be updated
+        :param player_df:         Name of the Dataframe containing player data
         :return:
         '''
+        geojson_path = str(DATA_DIRECTORY.parent / 'map/static/json/countries.geojson')
+        df_path = DATA_DIRECTORY / f'players/{player_df}'
+
         if not os.path.isfile(df_path):
             print(f'No file found under {df_path}. Please run "make parse_countries" as specified in the README.')
             exit(1)
@@ -227,14 +230,14 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--df_path', type=str)
+    parser.add_argument('--player_df', type=str, required=False)
     args = parser.parse_args()
 
     print('\n' + '-' * 50)
     print(f'Enriching countries.geoJSON with player counts and E4/D4 data')
     print('-' * 50)
-    if args.df_path is not None:
-        enricher = EnrichGeoJSON(df_path=args.df_path)
+    if args.player_df is not None:
+        enricher = EnrichGeoJSON(player_df=args.player_df)
     else:
         enricher = EnrichGeoJSON()
 

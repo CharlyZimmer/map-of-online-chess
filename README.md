@@ -9,11 +9,11 @@ pip install -r requirements.txt
 ### Data preparation
 The make command `data_preparation` runs the required commands to prepare the geoJSON and player data on Linux systems.
 Simply run the following command:
-- `JSON_PATH`: Path to the .json-file with player data
+- `JSON_FILE`: Name of the .json-file with player data (In the [data/players/](data/players) directory)
 - `USER_AGENT`: User agent to use with Nominatim (e.g. your mail-address)
 
 ```
-make prepare_data  JSON_PATH=player_data_lookup_only_positive.json USER_AGENT='[NAME]@uni-leipzig.de'
+make prepare_data  JSON_FILE=player_data_lookup_only_positive.json USER_AGENT='[NAME]@[MAIL_SERVICE]'
 ```
 
 For the detailed steps on other operating systems, please refer to the instructions below.
@@ -21,7 +21,7 @@ For the detailed steps on other operating systems, please refer to the instructi
 
 ### Detailed data preparation
 #### Map data
-Download the geoJSON from [datahub](https://datahub.io/core/geo-countries) to [`./map/static/json`](src/map/static/json) using the name `countries.geojson`.
+Download the geoJSON from [datahub](https://datahub.io/core/geo-countries) to [`./map/static/json`](map/static/json) using the name `countries.geojson`.
 On Linux, for instance, run:
 ```
 wget -O ./map/static/json/countries.geojson https://datahub.io/core/geo-countries/r/countries.geojson
@@ -29,11 +29,11 @@ wget -O ./map/static/json/countries.geojson https://datahub.io/core/geo-countrie
 
 #### Get country information for players
 Run the following make command with the required arguments:
-- `JSON_PATH`: Path to the .json-file with player data
+- `JSON_FILE`: Name of the .json-file with player data (In the data/players directory)
 - `USER_AGENT`: User agent to use with Nominatim (e.g. your mail-address)
 
 ```
-make parse_countries JSON_PATH=./data/players/player_data_lookup_only_positive.json USER_AGENT='[NAME]@uni-leipzig.de'
+make parse_countries JSON_FILE=player_data_lookup_only_positive.json USER_AGENT='[NAME]@[MAIL_SERVICE]'
 ```
 
 #### Add the player counts to each country
@@ -41,9 +41,10 @@ After downloading the `countries.geojson` file and parsing the country informati
 ```
 make enrich_geojson
 ```
-If you want to specify the Dataframe to be used, you can define the path as follows:
+If you want to specify the Dataframe to be used, you can define the name as follows:
+(Note that the file needs to be saved to [data/players/](data/players))
 ```
-make enrich_geojson DF_PATH=/path/to/df.parquet.gzip
+make enrich_geojson DF_NAME=df.parquet.gzip
 ```
 
 #### Install JavaScript Dependencies

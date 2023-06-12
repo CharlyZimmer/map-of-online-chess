@@ -1,12 +1,12 @@
 parse_countries:
-	python3 ./geocoding/country.py --json_path ${JSON_PATH} --user_agent ${USER_AGENT}
+	python3 -m src.geocoding.country --json_file ${JSON_FILE} --user_agent ${USER_AGENT}
 enrich_geojson:
-	@if [ -z "${DF_PATH}" ]; then\
-		python3 ./geocoding/enrich.py;\
+	@if [ -z "${PLAYER_DF}" ]; then\
+		python3 -m src.geocoding.enrich;\
 	else\
-		python3 ./geocoding/enrich.py --df_path ${DF_PATH};\
+		python3 -m src.geocoding.enrich --player_df ${PLAYER_DF};\
 	fi
 prepare_data:
-	python3 ./geocoding/country.py --json_path ${JSON_PATH} --user_agent ${USER_AGENT}
-	$(eval DF_PATH = $(subst /players/,/geocoding/, $(subst .json,.parquet.gzip,$(JSON_PATH))))
-	python3 ./geocoding/enrich.py --df_path ${DF_PATH}
+	python3 -m src.geocoding.country --json_file ${JSON_FILE} --user_agent ${USER_AGENT}
+	$(eval PLAYER_DF = $(subst .json,.parquet.gzip,$(JSON_FILE)))
+	python3 -m src.geocoding.enrich --player_df ${PLAYER_DF}
