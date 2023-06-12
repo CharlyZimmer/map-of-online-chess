@@ -3,7 +3,7 @@
 # Example usage:
 # OUT_PATH=map-of-online-chess/parse/data/pgn/lichess_db_standard_rated_2013-02_cleaned.pgn
 # IN_PATH=map-of-online-chess/parse/data/pgn/lichess_db_standard_rated_2013-02.pgn
-# rewrite_pgn.sh $IN_PATH $OUT_PAT
+# rewrite_pgn.sh $IN_PATH $OUT_PATH
 
 input_file=$1
 output_file=$2
