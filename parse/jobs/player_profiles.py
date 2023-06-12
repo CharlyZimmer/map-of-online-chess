@@ -17,10 +17,11 @@ class PlayerAPI:
         # Preparation: Try to load known players and set client
         self.parquet_path = PARSING_DIRECTORY / f'data/output/players/{known_players_parquet}'
         try:
-            known_df = read_parquet(self.parquet_path)
-            self.known_players = known_df.set_index("player").to_dict(orient="index")
+            self.known_df = read_parquet(self.parquet_path)
+            self.known_players = self.known_df.set_index("player").to_dict(orient="index")
         except:
             self.known_players = {}
+            self.known_df = DataFrame
 
         session = berserk.TokenSession(token)
         self.client = berserk.Client(session=session)
@@ -33,9 +34,11 @@ class PlayerAPI:
         player_df = df.groupby('player')['matched_name'].count().reset_index().drop('matched_name', axis=1)
         lichess_rate_limiter = RateLimiter(max_calls=10, period=1)
 
+        # Only loop through unknown players
+        player_df = player_df.loc[~player_df['player'].isin(self.known_players.keys())]
+
         # Try to get the player profiles from the lichess API
         temp_path = str(self.parquet_path).replace('.parquet.gzip', '_temp.parquet.gzip')
-        profile_rows = []
         for _, player_row in tqdm(iterable=player_df.iterrows(), total=player_df.shape[0],
                                   desc="Updating player profiles"):
             profile_dict = self._get_public_profile(player_row=player_row,
@@ -44,13 +47,12 @@ class PlayerAPI:
                                                     rate_limiter=lichess_rate_limiter)
 
             # Save the known player parquet after each iteration
-            profile_rows.append(profile_dict)
-            concat([player_df, DataFrame.from_records(profile_rows)], axis=1)\
-                .to_parquet(temp_path, compression='gzip')
+            self.known_df = concat([self.known_df, DataFrame.from_records([profile_dict])], axis=0)
+            self.known_df.to_parquet(temp_path, compression='gzip')
+            time.sleep(0.1)
 
         # Update the known players and remove the temp file
-        concat([player_df, DataFrame.from_records(profile_rows)], axis=1)\
-            .to_parquet(self.parquet_path, compression='gzip')
+        self.known_df.to_parquet(self.parquet_path, compression='gzip')
         if os.path.isfile(temp_path):
             os.remove(temp_path)
 
