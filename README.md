@@ -21,7 +21,7 @@ For the detailed steps on other operating systems, please refer to the instructi
 
 ### Detailed data preparation
 #### Map data
-Download the geoJSON from [datahub](https://datahub.io/core/geo-countries) to [`./map/static/json`](./map/static/json) using the name `countries.geojson`.
+Download the geoJSON from [datahub](https://datahub.io/core/geo-countries) to [`./map/static/json`](src/map/static/json) using the name `countries.geojson`.
 On Linux, for instance, run:
 ```
 wget -O ./map/static/json/countries.geojson https://datahub.io/core/geo-countries/r/countries.geojson

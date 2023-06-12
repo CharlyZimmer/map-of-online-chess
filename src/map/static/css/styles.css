@@ -1,0 +1,53 @@
+* {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+}
+
+.container {
+    width: 100vw;
+    height: 100vh;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: auto 400px;
+    grid-template-rows: auto 400px;
+    column-gap: 10px;
+    grid-template-areas:
+        "map header"
+        "map board"
+}
+
+#map {
+    grid-area: map
+}
+
+#board {
+    grid-area: board;
+}
+
+#header {
+    grid-area: header;
+    overflow: hidden
+}
+
+#openingDropdown {
+    position: absolute;
+    top: 20px;
+    /* adjust to desired vertical position */
+    right: 20px;
+    /* adjust to desired horizontal position */
+    z-index: 1000;
+    /* ensure dropdown appears on top of map */
+}
+
+.custom-control {
+    background-color: white;
+    padding: 10px;
+    border-radius: 10px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.65);
+}
+
+.custom-control label {
+    display: block;
+    margin-bottom: 5px;
+}
