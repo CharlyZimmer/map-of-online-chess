@@ -1,6 +1,8 @@
 import berserk
-from pandas import concat, read_parquet, Series
+import os
+from pandas import concat, DataFrame, read_parquet, Series
 from ratelimiter import RateLimiter
+import time
 from tqdm import tqdm
 from typing import Dict
 
@@ -29,20 +31,28 @@ class PlayerAPI:
         parquet_path = PARSING_DIRECTORY / f'data/output/players/{file_name}'
         df = read_parquet(parquet_path)
         player_df = df.groupby('player')['matched_name'].count().reset_index().drop('matched_name', axis=1)
-
         lichess_rate_limiter = RateLimiter(max_calls=10, period=1)
 
-        # Try to get the player profiles from the lichess API (Subject to the rate limit)
-        tqdm.pandas(desc="Requesting player profiles")
-        new_player_df = player_df.progress_apply(lambda player_row:
-                                                 self._get_public_profile(player_row=player_row,
-                                                                          client=self.client,
-                                                                          known_players=self.known_players,
-                                                                          rate_limiter=lichess_rate_limiter),
-                                                 axis=1, result_type='expand')
+        # Try to get the player profiles from the lichess API
+        temp_path = str(self.parquet_path).replace('.parquet.gzip', '_temp.parquet.gzip')
+        profile_rows = []
+        for _, player_row in tqdm(iterable=player_df.iterrows(), total=player_df.shape[0],
+                                  desc="Updating player profiles"):
+            profile_dict = self._get_public_profile(player_row=player_row,
+                                                    client=self.client,
+                                                    known_players=self.known_players,
+                                                    rate_limiter=lichess_rate_limiter)
 
-        # Save the output
-        concat([player_df, new_player_df], axis=1).to_parquet(self.parquet_path, compression='gzip')
+            # Save the known player parquet after each iteration
+            profile_rows.append(profile_dict)
+            concat([player_df, DataFrame.from_records(profile_rows)], axis=1)\
+                .to_parquet(temp_path, compression='gzip')
+
+        # Update the known players and remove the temp file
+        concat([player_df, DataFrame.from_records(profile_rows)], axis=1)\
+            .to_parquet(self.parquet_path, compression='gzip')
+        if os.path.isfile(temp_path):
+            os.remove(temp_path)
 
 
 
@@ -77,7 +87,18 @@ class PlayerAPI:
             return {}
         if player_name not in known_players:
             with rate_limiter:
-                known_players[player_name] = client.users.get_public_data(player_name).get('profile', {})
+                try:
+                    response = client.users.get_public_data(player_name)
+                except Exception as e:
+                    time_str = time.strftime('%H:%M:%S', time.localtime(time.time()))
+                    print(f'\n{time_str}: {e}')
+                    time.sleep(60)
+                    # Wait for 60s once and return an empty dict if another error occurs
+                    try:
+                        response = client.users.get_public_data(player_name)
+                    except:
+                        response = {}
+                known_players[player_name] = response.get('profile', {})
         return known_players[player_name]
 
 
