@@ -81,3 +81,22 @@ def run(file_name: str = 'test_cleaned.pgn', partitions=10):
     parsed_df.write.parquet(str(out_path))
 
     sc.stop()
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--pgn_file', type=str, required=True)
+    parser.add_argument('--num_partitions', type=int, required=False)
+    args = parser.parse_args()
+
+    file_name = args.pgn_file
+
+    print('\n' + '-' * 50)
+    print(f'Extracting openings from {file_name}')
+    print('-' * 50)
+    if args.num_partitions is not None:
+        run(file_name=file_name, partitions=args.num_partitions)
+    else:
+        run(file_name=file_name)

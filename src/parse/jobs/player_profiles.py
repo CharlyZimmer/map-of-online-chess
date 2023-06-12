@@ -8,12 +8,14 @@ from typing import Dict
 
 from src import DATA_DIRECTORY
 
-# See: https://lichess.org/api#section/Introduction/Authentication
-API_TOKEN = 'Enter Your Lichess API Token here'
-
 class PlayerAPI:
-    def __init__(self, token: str = API_TOKEN,
+    def __init__(self, token: str,
                  known_players_parquet: str = "known_players.parquet.gzip"):
+        '''
+
+        :param token:                   Token for the lichess API (https://lichess.org/api#section/Introduction/Authentication)
+        :param known_players_parquet:   Name of the file to load and store known players
+        '''
         # Preparation: Try to load known players and set client
         self.parquet_path = DATA_DIRECTORY / f'parse/output/players/{known_players_parquet}'
         try:
@@ -104,10 +106,22 @@ class PlayerAPI:
         return known_players[player_name]
 
 
-def run(file_name: str = 'test_cleaned.parquet.gzip'):
-    print("\n" + "-" * 50)
-    print(f"Updating known players based on {file_name}")
-    print("-" * 50)
-    api = PlayerAPI()
+def run(token: str, file_name: str = 'test_cleaned.parquet.gzip'):
+    api = PlayerAPI(token)
     api.update_known_players(new_players_parquet=file_name)
 
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--token', type=str, required=True)
+    parser.add_argument('--parquet_file', type=str, required=True)
+    args = parser.parse_args()
+
+    token = args.token
+    file_name = args.parquet_file
+
+    print('\n' + '-' * 50)
+    print(f"Updating known players based on {file_name}")
+    print('-' * 50)
+    run(token=token, file_name=file_name)

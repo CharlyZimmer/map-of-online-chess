@@ -41,3 +41,18 @@ def run(file_name: str = 'test_cleaned.parquet.gzip'):
     # 3. Save the result and stop spark session
     df_final.write.parquet(str(out_path))
     spark.stop()
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--parquet_file', type=str, required=True)
+    args = parser.parse_args()
+
+    file_name = args.parquet_file
+
+    print('\n' + '-' * 50)
+    print(f'Grouping players and counting their openings based on {file_name}')
+    print('-' * 50)
+    run(file_name=file_name)
