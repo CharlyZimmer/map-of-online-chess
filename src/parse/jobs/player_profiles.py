@@ -102,7 +102,7 @@ class PlayerAPI:
                     try:
                         response = client.users.get_public_data(player_name)
                     except:
-                        response = {}
+                        response = {'profile': {'error': f'{e}'}}
                 known_players[player_name] = {**base_dict, **response.get('profile', {})}
         return known_players[player_name]
 
