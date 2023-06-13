@@ -34,7 +34,7 @@ class PlayerAPI:
         parquet_path = DATA_DIRECTORY / f'parse/output/players/{new_players_parquet}'
         df = read_parquet(parquet_path)
         player_df = df.groupby('player')['matched_name'].count().reset_index().drop('matched_name', axis=1)
-        lichess_rate_limiter = RateLimiter(max_calls=10, period=1)
+        lichess_rate_limiter = RateLimiter(max_calls=2, period=1)
 
         # Only loop through unknown players
         player_df = player_df.loc[~player_df['player'].isin(self.known_players.keys())]
@@ -76,8 +76,8 @@ class PlayerAPI:
         :param client:              Instance of berserk.clients.Client (lichess' API client)
         :param known_players:       Dictionary of PLAYER_NAME: profile_dictionary
         :param rate_limiter:        Instance of ratelimiter.RateLimiter for API requests
-        :return:                    The profile dict of a player (if available)
-                                    Potential keys:
+        :return:                    Base dict of 'player': Name and the profile dict of a player (if available)
+                                    Potential keys include:
                                     - 'location'
                                     - 'country',
                                     - 'firstName'
@@ -87,8 +87,9 @@ class PlayerAPI:
                                     - 'links'
         """
         player_name = player_row['player']
+        base_dict = {'player': player_name}
         if player_name is None or player_name == '?':
-            return {}
+            return base_dict
         if player_name not in known_players:
             with rate_limiter:
                 try:
@@ -102,7 +103,7 @@ class PlayerAPI:
                         response = client.users.get_public_data(player_name)
                     except:
                         response = {}
-                known_players[player_name] = response.get('profile', {})
+                known_players[player_name] = {**base_dict, **response.get('profile', {})}
         return known_players[player_name]
 
 
