@@ -1,4 +1,9 @@
 # Parsing Lichess games
+## Preparation
+1. Get the opening data from [lichess' opening repo](https://github.com/lichess-org/chess-openings/) 
+2. After cloning, run `make` in the repository to get the expanded `.tsv` files.
+3. Copy the `.tsv` files from the `dist` to [data/parse](/data/parse)
+
 ## Jobs
 
 1. Clean the pgn file for spark processing. E.g.:

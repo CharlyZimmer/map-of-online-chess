@@ -1,3 +1,4 @@
+from os.path import isfile
 from pandas import DataFrame, concat, read_csv
 from pathlib import Path
 from typing import Tuple
@@ -12,9 +13,9 @@ class OpeningLoader:
         self._load_df()
 
     def _load_df(self):
-        try:
+        if isfile(f'{self.df_path}'):
             self.df = read_csv(self.df_path)
-        except:
+        else:
             self.df = self._merge_tsv_files()
             self.df.to_csv(self.df_path)
 
@@ -23,6 +24,11 @@ class OpeningLoader:
         Combine .tsv files of openings into a single DataFrame
         :return     DataFrame of all openings
         '''
+        if not isfile(f'{self.path}/a.tsv'):
+            print(f'.tsv files not found in {self.path}. '
+                  f'Please clone the repository under https://github.com/lichess-org/chess-openings/ and run make to'
+                  f'get the correct files. Then copy them to {self.path}')
+
         files = [x for x in self.path.glob('*.tsv')]
         df = DataFrame()
         for file in files:
