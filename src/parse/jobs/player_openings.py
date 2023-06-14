@@ -1,6 +1,6 @@
 import os
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, count
+from pyspark.sql.functions import col, count, lower
 
 from src import DATA_DIRECTORY
 
@@ -28,15 +28,16 @@ def run(file_name: str = 'test_cleaned.parquet.gzip'):
     # 2. Group players (across black and white) by their name and count the occurrence of openings
     df_grouped_a = df_filtered.groupBy('white', 'matched_name')\
         .agg(count('*').alias('opening_count'))\
-        .withColumnRenamed('white', 'player').withColumnRenamed('opening_count', 'count_w')
+        .withColumnRenamed('white', 'username').withColumnRenamed('opening_count', 'count_w')
     df_grouped_b = df_filtered.groupBy('black', 'matched_name')\
         .agg(count('*').alias('opening_count'))\
-        .withColumnRenamed('black', 'player').withColumnRenamed('opening_count', 'count_b')
+        .withColumnRenamed('black', 'username').withColumnRenamed('opening_count', 'count_b')
 
-    # Outer join with 0 fill to keep all rows and get correct sum
-    df_final = df_grouped_a.join(df_grouped_b, ["player", "matched_name"], "outer")\
+    # Outer join with 0 fill to keep all rows and get correct sum; Add an id column for API calls
+    df_final = df_grouped_a.join(df_grouped_b, ['username', 'matched_name'], 'outer')\
         .fillna(0)\
-        .withColumn("count", col("count_w") + col("count_b"))
+        .withColumn('count', col('count_w') + col('count_b'))\
+        .withColumn('id', lower(col('username')))
 
     # 3. Save the result and stop spark session
     df_final.write.parquet(str(out_path))
