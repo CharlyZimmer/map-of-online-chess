@@ -5,10 +5,11 @@
 3. Copy the `.tsv` files from the `dist` to [data/parse](/data/parse)
 
 ## Jobs
+From the top-level directory (`map-of-online-chess`), run the following commands in order. The examples are based on `test.pgn` that can be replaced for any lichess output.
 
 1. Clean the pgn file for spark processing. E.g.:
 ```
-./scripts/rewrite_pgn.sh ./data/parse/pgn/test.pgn ./data/parse/pgn/test_cleaned.pgn
+.src/parse/scripts/rewrite_pgn.sh ./data/parse/pgn/test.pgn ./data/parse/pgn/test_cleaned.pgn
 ```
 
 2. games.py - To extract opening data per game. E.g.:
@@ -22,7 +23,7 @@ python3 -m src.parse.jobs.player_openings --parquet_file test_cleaned.parquet.gz
 ```
 4. player_profiles - Get profile dictionary for all players in output of player_openings. E.g.:
 ```
-python3 -m src.parse.jobs.player_profiles --token YOUR_LICHESS_TOKEN --parquet_file test_cleaned.parquet.gzip
+python3 -m src.parse.jobs.player_profiles --token YOUR_LICHESS_API_TOKEN --parquet_file test_cleaned.parquet.gzip
 ```
 
 ## Notes
