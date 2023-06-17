@@ -1,56 +1,87 @@
-import json
-import pandas as pd
+from pandas import read_parquet, Series
 from geopy.geocoders import Nominatim
 import os
 from pandas import DataFrame
 from pycountry import countries
 from ratelimiter import RateLimiter
 from tqdm import tqdm
-from typing import Dict, Union
+from typing import Dict
 
 from src import DATA_DIRECTORY
 
-class JSONParser:
-    def __init__(self, json_file: str = 'player_data_lookup_only_positive', user_agent: str = 'abc@test.de'):
+
+class ParquetParser:
+    def __init__(self, user_agent: str = 'abc@test.de',
+                 known_countries_parquet: str = 'known_countries.parquet.gzip'):
         """
-        Initialize the parser with the path to the JSON file and a user_agent for geocoding with Nominatim
-        :param json_file:   Name JSON-file to be parsed (In the data/players directory)
-        :param user_agent:  String to use for identification with Nominatim (An email-address suffices)
+        Initialize the parser with the path to a parquet file with country information
+        and a user_agent for geocoding with Nominatim
+        :param user_agent:                  String to use for identification with Nominatim (An email-address suffices)
+        :param known_countries_parquet:     (Optional) Name to the file containing country locations
+                                            (In the data/output/countries directory)
+                                            Default: 'known_countries.parquet.gzip'
+                                            Will be used to read known locations and write results after completion
         """
-        self.json_path = DATA_DIRECTORY / f'players/{json_file}'
         self.user_agent = user_agent
 
-    def parse_player_json(self):
-        """
-        Turn the json data under self.json_path into a pandas DataFrame.
-        The columns are 'username' and the set of all keys under 'profile'.
+        # Prepare folder
+        self.countries_dir = DATA_DIRECTORY / 'output/countries'
+        os.makedirs(self.countries_dir, exist_ok=True)
 
-        Sets the self.df attribute.
-        """
-        with open(self.json_path, "r") as file:
-            player_json = json.load(file)
+        # Try to load a dataframe of known countries
+        self.known_parquet_path = self.countries_dir / f'{known_countries_parquet}'
+        if os.path.isfile(self.known_parquet_path):
+            known_df = read_parquet(self.known_parquet_path)
+            self.known_countries = known_df.set_index('ISO_A2').to_dict(orient='index')
+        else:
+            self.known_countries = {}
 
-        # Gather all available attributes about a player
-        profile_attr = list(
-            set([k for player in player_json for k in player["profile"].keys()])
+    def update_known_countries(
+            self, new_countries_parquet="test_openings.parquet.gzip"
+    ):
+        """
+        Add ISO_A2, ISO_A3, and country name to a parquet file of openings per counts.
+        Also add the Nominatim place_id of new countries to the DataFrame of known countries.
+
+        :param new_countries_parquet:   Filename of the parquet file (in data/parse/output/countries) to identify
+                                        new countries from
+        """
+        # Load and prepare the dataframe (Keep only unique countries)
+        parquet_path = self.countries_dir / new_countries_parquet
+        df = read_parquet(parquet_path)
+
+        country_df = df.groupby('country').count().reset_index()
+        country_df.rename(columns={"country": "ISO_A2"}, inplace=True)
+
+        # Expand the df with additional columns (ISO_A3 and country); Drop unidentified countries
+        tqdm.pandas(desc='Expanding country information per country')
+        country_df = country_df.progress_apply(self._parse_country_attr, axis=1)
+        country_df = country_df.dropna(subset='country')
+
+        # Set geocoder and rate limiter
+        geolocator = Nominatim(user_agent=self.user_agent)
+        nominatim_rate_limiter = RateLimiter(max_calls=1, period=1)
+
+        # Get new country locations with progress bar
+        tqdm.pandas(desc="Identifying country locations")
+        country_df.progress_apply(
+            lambda row: self._get_new_country(
+                row=row,
+                geolocator=geolocator,
+                known_locations=self.known_countries,
+                rate_limiter=nominatim_rate_limiter,
+            ),
+            axis=1
         )
-
-        # Turn the json into a dictionary of lists for each attribute
-        player_dict = {attr: [] for attr in (["username"] + profile_attr)}
-        for player in player_json:
-            player_dict["username"].append(player.get("username", None))
-            for attr in profile_attr:
-                player_dict[attr].append(player["profile"].get(attr, None))
-
-        # Turn the dictionary into a DataFrame and get the full country names and ISO_A3 identifiers
-        self.df = DataFrame(player_dict)
-        self.df.rename(columns={"country": "ISO_A2"}, inplace=True)
-        self.df = self.df.apply(self._parse_country_attr, axis=1)
-
-        print("Identified country names and ISO_A3 codes for each player.")
+        # Save the known countries as a parquet file
+        known_df = DataFrame(
+            [{"ISO_A2": country, **loc} for country, loc in self.known_countries.items()]
+        )
+        known_df.to_parquet(str(self.known_parquet_path), compression="gzip")
+        print(f"Got Nominatim country IDs for new countries and saved updated file to {self.known_parquet_path}.")
 
     @staticmethod
-    def _parse_country_attr(row: pd.Series) -> pd.Series:
+    def _parse_country_attr(row: Series) -> Series:
         """
         Parse the ISO_A2 (alpha_2) string of a country into its name and ISO_A3 string.
         The second is used for matching with the countries.geojson
@@ -66,100 +97,45 @@ class JSONParser:
             row["ISO_A3"] = None
         return row
 
-    def get_country_ids(
-        self, countries_parquet="known_countries.parquet.gzip"
-    ):
-        """
-        Gets the Nominatim place_id of all countries in self.df.country.
-        Known country information are reused and unknown requested via Nominatim
-
-        :param countries_parquet:   (Optional) Path to the file containing country locations.
-                                    Default: './data/geocoding/known_countries.parquet.gzip'
-                                    Will be used to read known locations and write results after completion
-        """
-        countries_dir = DATA_DIRECTORY / 'countries'
-        os.makedirs(countries_dir, exist_ok=True)
-        parquet_path = countries_dir / countries_parquet
-
-        if not hasattr(self, "df"):
-            self.parse_player_json()
-
-        # Preparation: Try to load known locations, set geocoder and rate limiter
-        try:
-            known_df = pd.read_parquet(str(parquet_path))
-            known_countries = known_df.set_index("country").to_dict(orient="index")
-        except:
-            known_countries = {}
-
-        geolocator = Nominatim(user_agent=self.user_agent)
-        nominatim_rate_limiter = RateLimiter(max_calls=1, period=1)
-
-        # Get all country locations with progress bar
-        tqdm.pandas(desc="Identifying country locations")
-        self.df["place_id"] = self.df["country"].progress_apply(
-            lambda country: self._get_place_id(
-                location_name=country,
-                geolocator=geolocator,
-                known_locations=known_countries,
-                rate_limiter=nominatim_rate_limiter,
-            )
-        )
-
-        # Save the known countries as a parquet file
-        known_df = DataFrame(
-            [{"country": country, **loc} for country, loc in known_countries.items()]
-        )
-        known_df.to_parquet(str(parquet_path), compression="gzip")
-
-        print(
-            f"Added Nominatim country IDs for all players and saved known countries to {parquet_path}."
-        )
-
     @staticmethod
-    def _get_place_id(
-        location_name: str,
-        geolocator: Nominatim,
-        known_locations: Dict[str, Dict],
-        rate_limiter: RateLimiter,
-    ) -> Union[int, None]:
+    def _get_new_country(
+            row: Series,
+            geolocator: Nominatim,
+            known_locations: Dict[str, Dict],
+            rate_limiter: RateLimiter):
         """
-        Return the place_id of a location string as coded by Nominatim.
-        Known locations are reused. Requests to Nominatim are subject to the limits set in rate_limiter
-
-        :param location_name:       String of the location to be coded
+        Add Nominatim information about a new country from Nominatim.
+        Requests to Nominatim are subject to the limits set in rate_limiter
+        :param row:                 Row of a pandas DataFrame
         :param geolocator:          Instance of geopy.geocoders.Nominatim
         :param known_locations:     Dictionary of LOCATION_NAME: geopy.Location
         :param rate_limiter:        Instance of ratelimiter.RateLimiter for Nominatim requests
-        :return:                    Place ID of the location_name
+        :return:                    Same row
         """
-        if location_name is None:
-            return None
-        if location_name not in known_locations:
+        iso_a2 = row['ISO_A2']
+        if iso_a2 not in known_locations:
+            iso_a3 = row['ISO_A3']
+            location_name = row['country']
             with rate_limiter:
-                known_locations[location_name] = geolocator.geocode(location_name).raw
-
-        return known_locations[location_name]["place_id"]
-
-    def write_df(self):
-        if not hasattr(self, "df"):
-            self.parse_player_json()
-            self.get_country_ids()
-
-        out_path = str(self.json_path).replace(".json", ".parquet.gzip")
-        self.df.to_parquet(out_path, compression="gzip")
-        print(f"Saved player data to {out_path}\n")
+                try:
+                    location = geolocator.geocode(location_name).raw
+                except:
+                    location = {}
+                known_locations[iso_a2] = {'country': location_name,
+                                           'ISO_A3': iso_a3,
+                                           **location}
 
 
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--json_file", type=str, required=True)
+    parser.add_argument("--file_name", type=str, required=True)
     parser.add_argument("--user_agent", type=str, required=True)
     args = parser.parse_args()
 
     print("\n" + "-" * 50)
-    print(f"Parsing player countries for {args.json_file}")
+    print(f"Updating known countries based on {args.file_name}")
     print("-" * 50)
-    parser = JSONParser(json_file=args.json_file, user_agent=args.user_agent)
-    parser.write_df()
+    parser = ParquetParser(user_agent=args.user_agent)
+    parser.update_known_countries(new_countries_parquet=args.file_name)
