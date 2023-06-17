@@ -8,6 +8,13 @@
 input_file=$1
 output_file=$2
 
+# Ensure different name for output_file to not delete input_file
+if [ "$input_file" = "$output_file"  ]; then
+	echo "Please provide a different name for the output file"
+	exit 1
+fi
+
+
 # Initialize variables
 delim="[Event "
 buffer=""
