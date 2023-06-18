@@ -60,8 +60,10 @@
     function countryClickOpening(e, openingName) {
         var cleanedOpeningName = Utils.cleanOpeningName(openingName);
 
-        alert(e.target.feature.properties.ADMIN + ": " + e.target.feature.properties.PLAYER_COUNT + " players\n" +
-            cleanedOpeningName + " probability: " + Math.round(e.target.feature.properties[openingName] * 1000) / 10 + "%\n");
+        alert(e.target.feature.properties.ADMIN + "\n"
+            + "- "+ e.target.feature.properties.PLAYER_COUNT + " players\n"
+            + "- Probability (" + cleanedOpeningName + "): " +
+            Math.round(e.target.feature.properties[openingName] * 1000) / 10 + "%\n");
     }
 
 

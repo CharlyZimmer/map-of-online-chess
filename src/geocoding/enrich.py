@@ -44,6 +44,7 @@ class EnrichGeoJSON:
 
     def add_openings(self):
         known_openings = self.country_df.groupby('matched_name')['matched_name'].count().index.tolist()
+        self.meta_json['openings'] = known_openings
         for opening in tqdm(known_openings, desc='Adding openings to geojson'):
             opening_df = self.country_df.loc[self.country_df['matched_name'] == opening]
             opening_dict = {
