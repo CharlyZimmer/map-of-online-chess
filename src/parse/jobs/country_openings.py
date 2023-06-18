@@ -1,5 +1,5 @@
 import os
-from pandas import DataFrame, read_parquet
+from pandas import concat, DataFrame, merge, read_parquet
 from typing import Tuple
 
 from src import DATA_DIRECTORY
@@ -30,10 +30,24 @@ def get_country_dfs(openings_df: DataFrame) -> Tuple[DataFrame, DataFrame]:
     # 1. Calculate the share per opening for each player
     openings_df['share'] = openings_df['count'].div(openings_df.groupby('id')['count'].transform('sum'))
 
-    # 2. Calculate the mean share for an opening across players from the same country; Count players per country
-    country_opening_df = openings_df.groupby(['country', 'matched_name'])['share'].mean().reset_index()
-    country_player_count_df = openings_df.groupby('country')['id'].count().reset_index()
+    # 2. Calculate global mean and standard deviation per opening
+    opening_mean = openings_df.groupby('matched_name')['share'].mean().rename('mean')
+    opening_std = openings_df.groupby('matched_name')['share'].std().rename('std')
+    opening_mean_std = concat([opening_mean, opening_std], axis=1)
+    opening_mean_std.to_parquet(
+        str(DATA_DIRECTORY / 'openings/opening_mean_std.parquet.gzip'),
+        compression='gzip'
+    )
 
+    # 3. Calculate the mean share for an opening across players from the same country; Count players per country
+    country_opening_df = openings_df.groupby(['country', 'matched_name'])['share'].mean().reset_index()
+    country_player_count_df = openings_df.groupby('country')['id'].count()\
+        .reset_index().rename(columns={'id': 'num_players'})
+
+    # 4. Standardize the country_opening_df using z-score (mean and std)
+    tmp_df = merge(opening_mean_std, country_opening_df, on='matched_name', how='left')
+    tmp_df['standardized_share'] = (tmp_df['share'] - tmp_df['mean']) / tmp_df['std']
+    country_opening_df = tmp_df.drop(['mean', 'std'], axis=1).dropna()
 
     return country_opening_df, country_player_count_df
 

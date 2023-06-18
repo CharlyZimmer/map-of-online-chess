@@ -30,7 +30,7 @@ Get profile dictionary for all players in output of player_openings:
 python3 -m src.parse.jobs.player_profiles --token YOUR_LICHESS_API_TOKEN --parquet_file test_cleaned.parquet.gzip
 ```
 ### 5. country_openings 
-Get the probability of an opening on country level plus the number of players per country:
+Get the share and (standard normalized share) of an opening on country level plus the number of players per country:
 ```
 python3 -m src.parse.jobs.country_openings --parquet_file test_cleaned.parquet.gzip
 ```
