@@ -82,17 +82,18 @@ document.addEventListener("DOMContentLoaded", function () {
         // (Based on the positions with below and above average probability for each opening)
         const openings = metaData['openings'];
         let openingGradients = {};
+        const negPositions = metaData['negative_positions']
+        const posPositions = metaData['positive_positions']
+
         for (let i = 0; i < openings.length; i++) {
             var name = openings[i];
-            var negPositions = metaData[name + '_neg_positions']
-            var posPositions = metaData[name + '_pos_positions']
             openingGradients[name] = Colors.getOpeningGradient(negPositions, posPositions)
         }
 
         // TODO: Make dropdown invisible and select opening from dropdown
         var openingDropdown = Utils.openingDropdown(openings);
         openingDropdown.style.display = 'block';
-        var openingName = 'SICILIAN_DEFENSE';
+        var openingName = 'Ruy Lopez: Closed';
 
         // e4/d4 information
         const e4Positions = metaData['e4_positions'];

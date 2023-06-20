@@ -15,7 +15,7 @@ class PlayerAPI:
         :param known_players_parquet:   Name of the file to load and store known players
         '''
         # Preparation: Try to load known players and set client
-        self.parquet_path = DATA_DIRECTORY / f'parse/output/players/{known_players_parquet}'
+        self.parquet_path = DATA_DIRECTORY / f'output/players/{known_players_parquet}'
         if os.path.isfile(self.parquet_path):
             self.known_df = read_parquet(self.parquet_path).drop_duplicates(subset=['id'])
             self.known_players = self.known_df.set_index('id').to_dict(orient='index')
@@ -39,7 +39,7 @@ class PlayerAPI:
         :param ratelimit_sec:           How many seconds should pass between requests; default 600
         :param max_players:             How many players to request in one job (daily limit); default 120_000
         '''
-        parquet_path = DATA_DIRECTORY / f'parse/output/players/{new_players_parquet}'
+        parquet_path = DATA_DIRECTORY / f'output/players/{new_players_parquet}'
         temp_path = str(self.parquet_path).replace('.parquet.gzip', '_temp.parquet.gzip')
 
         # Load file with new player data (drop known players) and create ratelimiter

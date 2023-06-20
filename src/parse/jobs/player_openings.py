@@ -13,13 +13,14 @@ def run(file_name: str = 'test_cleaned.parquet.gzip'):
     '''
 
     # 0. Paths and directories
-    in_path = DATA_DIRECTORY / f'parse/output/games/{file_name}'
-    out_dir = DATA_DIRECTORY / f'parse/output/players'
+    in_path = DATA_DIRECTORY / f'output/games/{file_name}'
+    out_dir = DATA_DIRECTORY / f'output/players'
     out_path = out_dir / file_name
     os.makedirs(os.path.dirname(out_dir), exist_ok=True)
 
     # 1. Spark preparation; Load the parquet file and keep only valid openings
     spark = SparkSession.builder \
+        .config('spark.driver.memory', '4g') \
         .appName('Player Openings') \
         .getOrCreate()
     df = spark.read.parquet(str(in_path))

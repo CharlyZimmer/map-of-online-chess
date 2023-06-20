@@ -6,7 +6,7 @@ from typing import Tuple
 from src import DATA_DIRECTORY
 
 class OpeningLoader:
-    def __init__(self, path: Path = DATA_DIRECTORY / 'parse'):
+    def __init__(self, path: Path = DATA_DIRECTORY / 'openings'):
         self.path = path
         self.df_path = path / 'openings.csv'
 

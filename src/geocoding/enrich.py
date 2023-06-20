@@ -1,251 +1,148 @@
 import json
 import os
-import pandas as pd
-import tqdm
+from pandas import merge, read_parquet
+from tqdm import tqdm
 
 from src import DATA_DIRECTORY
 
 class EnrichGeoJSON:
-    def __init__(self, player_df: str = 'player_data_lookup_only_positive.parquet.gzip'):
+    def __init__(self, country_openings_parquet: str = "test_cleaned_openings.parquet.gzip"):
         '''
-        Initialize a EnrichGeoJSON instance using paths to the player dataframe and countries.geojson
-        :param player_df:         Name of the Dataframe containing player data
-        :return:
+        :param country_openings_parquet:    File name of the parquet containing country-opening combinations
         '''
-        geojson_path = str(DATA_DIRECTORY.parent / 'map/static/json/countries.geojson')
-        df_path = DATA_DIRECTORY / f'players/{player_df}'
+        countries_path = DATA_DIRECTORY / f'output/countries'
+        json_dir = DATA_DIRECTORY.parent / 'map/static/json'
 
-        if not os.path.isfile(df_path):
-            print(f'No file found under {df_path}. Please run "make parse_countries" as specified in the README.')
-            exit(1)
+        # Define paths
+        self.country_openings_path = countries_path / country_openings_parquet
+        self.known_countries_path: str = countries_path / "known_countries.parquet.gzip"
+        self.geojson_path = json_dir / 'countries.geojson'
+        self.meta_json_path = json_dir / 'enrichment_metadata.json'
 
-        if not os.path.isfile(geojson_path):
-            self._download_geojson(geojson_path)
+        # Load initial data
+        self._load_json_files()
+        self._load_and_filter_df()
 
-        self.geojson_path = geojson_path
-        self.player_df = pd.read_parquet(df_path)
-        with open(geojson_path, 'r') as file:
-            self.country_json = json.load(file)
+    def get_color_positions(self, min_players: int = 20_000, num_positions: int = 500):
+        # Find the range of standardized values for countries with a minimum number of players
+        value_range = self.country_df.loc[self.country_df['num_players'] > min_players]\
+            .sort_values('standardized_share')['standardized_share']
+        share_max = value_range.iloc[-1]
+        share_min = value_range.iloc[0]
+        share_range = share_max - share_min
+        step_size = share_range / num_positions
 
-        # Store num_countries to be referenced by the map application
+        # Update the meta_json with number of positive and negative positions (relevant for color coding)
+        self.meta_json['positive_positions'] = round(abs(share_max)/share_range*num_positions)
+        self.meta_json['negative_positions'] = round(abs(share_min) / share_range * num_positions)
+
+        # Assign each country/opening combination their position
+        # - Outliers are set to min and max value
+        # - 1 is added as position 0 is reserved for unknown values
+        self.country_df['position'] = self.country_df['standardized_share']\
+            .apply(lambda x: min(num_positions + 1, max(round((x - share_min) / step_size) + 1, 1)))
+
+    def add_openings(self):
+        known_openings = self.country_df.groupby('matched_name')['matched_name'].count().index.tolist()
+        self.meta_json['openings'] = known_openings
+        for opening in tqdm(known_openings, desc='Adding openings to geojson'):
+            opening_df = self.country_df.loc[self.country_df['matched_name'] == opening]
+            opening_dict = {
+                country: (position, share)
+                for country, position, share in
+                zip(opening_df.country, opening_df.position, opening_df.share)
+            }
+            for country_feature in self.country_geojson['features']:
+                properties = country_feature['properties']
+
+                # If no information is available for a country, return 0, 0
+                country_tuple = opening_dict.get(properties['ISO_A3'], (0, 0))
+                properties[f'{opening}_POS'] = country_tuple[0]
+                properties[opening] = country_tuple[1]
+
+    def add_player_counts(self):
+        # TODO: Remove the E4/D4 dummy in favor of correct data
+        self.meta_json['d4_positions'] = 250
+        self.meta_json['e4_positions'] = 250
+
+        count_dict = self.player_counts.set_index('country')['num_players'].to_dict()
+        for country_feature in self.country_geojson['features']:
+            properties = country_feature['properties']
+            properties['PLAYER_COUNT'] = count_dict.get(properties['ISO_A3'], 0)
+
+            # TODO: Remove the E4/D4 dummy in favor of correct data
+            properties['E4_D4_POS'] = 0
+            properties['E4'] = 0
+            properties['D4'] = 0
+
+    def _load_and_filter_df(self):
+        # 1. Load the parquet files
+        country_df = read_parquet(self.country_openings_path)
+        player_counts = read_parquet(str(self.country_openings_path).replace('openings', 'player_count'))
+        known_country_df = read_parquet(self.known_countries_path)
+        self.meta_json['num_countries'] = len(known_country_df)
+
+        # 2. Add player counts and ISO_A3 string to the country df; ISO_A3 string to player_counts
+        country_df = merge(country_df, player_counts, on='country', how='left')
+        map_dict = known_country_df.set_index('ISO_A2')['ISO_A3'].to_dict()
+        country_df['country'] = country_df['country'].apply(lambda iso_a2: map_dict.get(iso_a2, None))
+
+        player_counts['country'] = player_counts['country'].apply(lambda iso_a2: map_dict.get(iso_a2, None))
+
+        self.country_df = country_df.dropna(subset='country')
+        self.player_counts = player_counts.dropna(subset='country')
+
+    def _load_json_files(self):
+        if not os.path.isfile(self.geojson_path):
+            import wget
+            print(f'No file {self.geojson_path} found. Downloading countries.geojson to the specified path...')
+            _ = wget.download(url='https://datahub.io/core/geo-countries/r/countries.geojson',
+                              out=str(self.geojson_path))
+            print('\n')
+
+        with open(self.geojson_path, 'r') as file:
+            self.country_geojson = json.load(file)
+
         self.meta_json = {}
-        self.meta_json_path = '/'.join(self.geojson_path.split('/')[:-1]) + '/enrichment_metadata.json'
         if os.path.isfile(self.meta_json_path):
             with open(self.meta_json_path, 'r') as file:
                 self.meta_json = json.load(file)
 
-        self.meta_json['num_countries'] = len(self.player_df.groupby('ISO_A3').count())
-
-    def _download_geojson(self, geojson_path: str):
-        import wget
-        print(f'No file {geojson_path} found. Downloading countries.geojson to the specified path...')
-        _ = wget.download(url='https://datahub.io/core/geo-countries/r/countries.geojson',
-                          out=geojson_path)
-        print('\n')
-
-    def add_player_count(self):
-        '''
-        Update the countries.geojson file used for map visualization by adding player counts to each country feature
-        '''
-        # Count the players per country and turn the result into a dictionary
-        player_count = self.player_df.groupby('ISO_A3')['username'].count()
-        country_dict = {country: count for country, count in zip(player_count.index, player_count)}
-
-        # Add the player count to each country
-        for country_feature in tqdm.tqdm(self.country_json['features'], desc='Adding player counts to countries'):
-            properties = country_feature['properties']
-            properties['PLAYER_COUNT'] = country_dict.get(properties['ISO_A3'], 0)
-
-    def add_e4_d4_split(self):
-        '''
-        Add the average share of E4 and D4 openings played per country of origin. Also add a position indicating if
-        E4 or D4 dominates in comparison with the global averages.
-        '''
-        opening_df = self._calculate_e4d4_split()
-
-        self.meta_json['d4_positions'] = int(opening_df.loc[opening_df['e4_share_standardized'] <= 0]
-                                             ['position'].max() - 1)
-        self.meta_json['e4_positions'] = int(opening_df['position'].max() - self.meta_json['d4_positions'])
-
-        opening_dict = {
-            country: (position, e4, d4) for country, position, e4, d4
-            in zip(opening_df.index,
-                   opening_df.position,
-                   opening_df.e4,
-                   opening_df.d4)
-                        }
-
-        # Add the opening information to each country
-        for country_feature in tqdm.tqdm(self.country_json['features'], desc='Adding e4/d4 information to countries'):
-            properties = country_feature['properties']
-
-            # If no information is available for a country, return 0, 0, 0
-            country_tuple = opening_dict.get(properties['ISO_A3'], (0, 0, 0))
-            properties['E4_D4_POS'] = country_tuple[0]
-            properties['E4'] = country_tuple[1]
-            properties['D4'] = country_tuple[2]
-
-
-    def _calculate_e4d4_split(self) -> pd.DataFrame:
-        '''
-        Function to create a DataFrame for the E4/D4 split on country level.
-        - Calculate the average share of E4 and D4 openings played per country of origin
-        - Calculate the relative E4 share (only considering E4 and D4 share)
-        - Standardize the E4 share to have negative values for countries with D4 and positive values for countries
-          with E4 preference
-        - Assign positions to each country that will be used in color coding
-
-        Currently averages on player level, meaning that the number of games per player is not regarded
-        (TODO: Potentially update this)
-        Dummy function; Will be used to add actual E4/D4 information per country to the countries.geojson
-        :return:    A DataFrame with four columns: e4_share_standardized, position, country_e4, country_d4
-        '''
-        # TODO: Remove in favor of correct approach
-        import random
-        def random_e4_d4(row):
-            e4 = max(0.10, min(1.0, random.gauss(0.6, 0.10)))
-            row['e4'] = e4
-            row['d4'] = 0.9 - e4
-            return row
-
-        self.player_df = self.player_df.apply(random_e4_d4, axis=1)
-
-        country_e4 = self.player_df.groupby('ISO_A3')['e4'].mean()
-        country_d4 = self.player_df.groupby('ISO_A3')['d4'].mean()
-
-        # TODO: The following code can probably stay the same (Confirm)
-        # Bring values on one scale and standardize using mean and std:
-        # - Positive values: e4 is more popular -> Number stored in num_e4
-        # - Negative values: d4 is more popular -> Number stored in num_d4
-        e4_share = country_e4 / (country_e4 + country_d4)
-
-        # TODO: Calculate mean and standard deviation over all games instead of aggregated by player and by country
-        e4_share_standardized = ((e4_share - e4_share.mean()) / e4_share.std()).sort_values()
-
-        # Get the position corresponding to a normalized share
-        positions = self._assign_pos_to_share(share_series=e4_share_standardized)
-
-        # Combine all information into a single df
-        opening_df = pd.concat([e4_share_standardized, positions, country_e4, country_d4], axis=1)
-        opening_df.rename(columns={0: 'e4_share_standardized'}, inplace=True)
-        opening_df.rename(columns={1: 'position'}, inplace=True)
-
-        return opening_df
-
-
-    def add_opening(self, name: str ='SICILIAN_DEFENSE'):
-        '''
-        Add the average probability for an opening played per country of origin. Also add a position indicating if
-        the probability is higher or lower than the global average.
-        '''
-        opening_df = self._calculate_opening(name)
-
-        self.meta_json['openings'] = self.meta_json.get('openings', []) + [name]
-        self.meta_json[f'{name}_neg_positions'] = int(opening_df.loc[opening_df['standardized_prob'] <= 0]
-                                                      ['position'].max() - 1)
-        self.meta_json[f'{name}_pos_positions'] = int(opening_df['position'].max() -
-                                                      self.meta_json[f'{name}_neg_positions'])
-
-        opening_dict = {
-            country: (position, prob) for country, position, prob
-            in zip(opening_df.index,
-                   opening_df.position,
-                   opening_df[name])
-                        }
-
-        # Add the opening information to each country
-        for country_feature in tqdm.tqdm(self.country_json['features'], desc=f'Adding {name} probabilities to countries'):
-            properties = country_feature['properties']
-
-            # If no information is available for a country, return 0, 0
-            country_tuple = opening_dict.get(properties['ISO_A3'], (0, 0))
-            properties[f'{name}_POS'] = country_tuple[0]
-            properties[name] = country_tuple[1]
-
-
-    def _calculate_opening(self, name: str ='SICILIAN_DEFENSE') -> pd.DataFrame:
-        '''
-        Function to create a DataFrame for the probability of a specific opening on country level.
-        - Calculate the probability for that opening being played per country of origin
-        - Standardize the probability to have negative values for countries with lower probability than global average
-          and positive values for countries with a higher probability
-        - Assign positions to each country that will be used in color coding
-
-        Currently averages on player level, meaning that the number of games per player is not regarded
-        (TODO: Potentially update this)
-        Dummy function; Will be used to add actual opening information per country to the countries.geojson
-        :return:    A DataFrame with three columns: standardized_prob, position, [name]
-        '''
-        # TODO: Remove in favor of correct approach
-        import random
-        def random_prob(row):
-            row[name] = max(0.05, min(0.20, random.gauss(0.125, 0.05)))
-            return row
-
-        self.player_df = self.player_df.apply(random_prob, axis=1)
-        prob = self.player_df.groupby('ISO_A3')[name].mean()
-
-        # TODO: The following code can probably stay the same (Confirm)
-        # Bring values on one scale and standardize using mean and std:
-        # - Positive values: Opening is more popular than global average
-        # - Negative values: Opening is less popular than global average
-
-        # TODO: Calculate mean and standard deviation over all games instead of aggregated by player and by country
-        standardized_prob = ((prob - prob.mean()) / prob.std()).sort_values()
-
-        # Get the position corresponding to a normalized share
-        positions = self._assign_pos_to_share(share_series=standardized_prob)
-
-        # Combine all information into a single df
-        opening_df = pd.concat([standardized_prob, positions, prob], axis=1)
-        opening_df.columns = ['standardized_prob', 'position', name]
-        return opening_df
-
-    @staticmethod
-    def _assign_pos_to_share(share_series: pd.Series, num_positions: int = 500):
-        share_max = share_series.max()
-        share_min = share_series.min()
-        diff = share_max - share_min
-        step = diff / num_positions
-
-        # Return the rounded value as position (1 is added as position 0 is reserved for unknown values)
-        return share_series.apply(lambda x: round((x-share_min)/step)+1)
-
-
-
-
-    def save_geojson(self):
-        # Save the updated GEOJSON
+    def _save_json_files(self):
         with open(self.geojson_path, 'w') as file:
-            json.dump(self.country_json, file)
-
+            json.dump(self.country_geojson, file)
         with open(self.meta_json_path, 'w') as file:
             json.dump(self.meta_json, file)
 
-        print(f'Saved enriched geoJSON to {self.geojson_path}\n')
+    def run(self):
+        '''
+        Add additional information to each country feature
+        - Player count: How many players were counted for that country
+        - Openings:
+            * Average probability for an opening played per country of origin.
+            * Position indicating if the probability is higher or lower than the global average
+        '''
+        # Get positions for each country opening combination
+        self.get_color_positions()
 
+        # Expand the geojson
+        self.add_openings()
+        self.add_player_counts()
 
+        # Save the updated json files
+        self._save_json_files()
 
 if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--player_df', type=str, required=False)
+    parser.add_argument('--parquet_file', type=str, required=True)
     args = parser.parse_args()
 
+    file_name = args.parquet_file
+
     print('\n' + '-' * 50)
-    print(f'Enriching countries.geoJSON with player counts and E4/D4 data')
+    print(f"Enriching countries.geoJSON based on {file_name}")
     print('-' * 50)
-    if args.player_df is not None:
-        enricher = EnrichGeoJSON(player_df=args.player_df)
-    else:
-        enricher = EnrichGeoJSON()
-
-    enricher.add_player_count()
-    enricher.add_e4_d4_split()
-
-    openings = ['SICILIAN_DEFENSE', 'LATVIAN_GAMBIT', 'PIZZA_MAFIA_MANDOLINO']
-    for opening in openings:
-        enricher.add_opening(opening)
-
-    enricher.save_geojson()
+    enricher = EnrichGeoJSON(file_name)
+    enricher.run()

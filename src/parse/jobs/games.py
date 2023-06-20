@@ -57,8 +57,8 @@ def process_game(game: chess.pgn.Game, opening_df: DataFrame, num_moves: int = 1
 def run(file_name: str = 'test_cleaned.pgn', partitions=10):
     # 0. Preparation
     # Paths and directories
-    in_path = DATA_DIRECTORY / f'parse/pgn/{file_name}'
-    out_dir = DATA_DIRECTORY / f'parse/output/games'
+    in_path = DATA_DIRECTORY / f'pgn/{file_name}'
+    out_dir = DATA_DIRECTORY / f'output/games'
     out_path = out_dir / file_name.replace('.pgn', '.parquet.gzip')
     os.makedirs(os.path.dirname(out_dir), exist_ok=True)
 
