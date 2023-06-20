@@ -29,6 +29,9 @@ function onDrop(source, target) {
     if (move === null) return 'snapback'
 
     updateStatus()
+
+    // TODO: update global opening variable, update dropdown value accordingly, update map
+
 }
 
 // update the board position after the piece snap
