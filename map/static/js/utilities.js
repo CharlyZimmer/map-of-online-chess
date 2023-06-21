@@ -4,18 +4,18 @@
     // Get number of countries with enriched data
     fetchMetadata = async function () {
         try {
-        const response = await fetch('./enrichment_metadata');
-        if (response.ok) {
-            return await response.json();
-        } else {
-            throw new Error('Error fetching metadata JSON');
-        }
+            const response = await fetch('./enrichment_metadata');
+            if (response.ok) {
+                return await response.json();
+            } else {
+                throw new Error('Error fetching metadata JSON');
+            }
         } catch (error) {
             console.error('Error:', error);
         }
     };
 
-    Utils.prepareMap = async function(){
+    Utils.prepareMap = async function () {
         const countriesData = await Countries.fetchCountries();
         const metaData = await fetchMetadata();
 
@@ -28,17 +28,14 @@
                 .replaceAll('_', ' ')
         );
 
-    Utils.openingDropdown = function (openings){
-        var dropdown = document.createElement("select");
-        dropdown.id = "openingDropdown";
+    Utils.fillDropdown = function (openings) {
+        var datalist = document.getElementById('openingSuggestions')
 
-        openings.forEach(function(opening){
-           var newOption = document.createElement("option");
-           newOption.value = opening;
-           newOption.text = Utils.cleanOpeningName(opening);
-           dropdown.add(newOption);
+        openings.forEach(function (opening) {
+            var newOption = document.createElement("option");
+            newOption.text = Utils.cleanOpeningName(opening);
+            datalist.appendChild(newOption);
         });
-        return dropdown;
     }
 
     global.Utils = Utils;

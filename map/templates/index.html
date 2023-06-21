@@ -18,6 +18,7 @@
     <script src="/static/js/countries.js"></script>
     <script src="/static/js/colors.js"></script>
     <script src="/static/js/utilities.js"></script>
+    <script src="/static/js/openings.js"></script>
     <link rel="stylesheet" href="/static/css/styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.js"></script>
 </head>
@@ -29,13 +30,18 @@
         <div id="header">
             <label>Status:</label>
             <div id="status"></div>
-            <label>FEN:</label>
-            <div id="fen"></div>
             <label>PGN:</label>
             <div id="pgn"></div>
+            <div>
+                <datalist id="openingSuggestions"></datalist>
+                <input id="openingInput" autoComplete="on" list="openingSuggestions" />
+            </div>
+            <button id="buttonBase" onclick="switchToBase()">Base</button>
+            <button id="buttonE4D4" onclick="switchToE4D4()">E4/D4 Split</button>
+            <button id="buttonOpenings" onclick="switchToOpening()">Openings</button>
+
         </div>
     </div>
-    <select id="openingDropdown"></select>
 
     <script src="/static/js/main.js"></script>
 </body>

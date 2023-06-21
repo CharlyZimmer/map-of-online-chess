@@ -1,11 +1,16 @@
-// code for only allowing legal moves by https://chessboardjs.com/examples#5000
-
 var board = null
 var game = new Chess()
 var $status = $('#status')
-var $fen = $('#fen')
 var $pgn = $('#pgn')
+var openingName = 'Ruy Lopez: Closed';
+var metaData = null
+var e4d4Gradient = null
+var map = null
+var countryLayer = null
+var countriesData = null
+var openingGradients = null
 
+// code for only allowing legal moves by https://chessboardjs.com/examples#5000
 function onDragStart(source, piece, position, orientation) {
     // do not pick up pieces if the game is over
     if (game.game_over()) return false
@@ -29,10 +34,53 @@ function onDrop(source, target) {
     if (move === null) return 'snapback'
 
     updateStatus()
-
-    // TODO: update global opening variable, update dropdown value accordingly, update map
+    updateOpening()
 
 }
+
+// https://stackoverflow.com/questions/7431268/how-to-read-data-from-csv-file-using-javascript
+function processCSV(allText) {
+    var allTextLines = allText.split(/\r\n|\n/);
+    var headers = allTextLines[0].split(',');
+    var lines = [];
+
+    for (var i = 1; i < allTextLines.length; i++) {
+        var data = allTextLines[i].split(',');
+        if (data.length == headers.length) {
+
+            var tarr = [];
+            for (var j = 0; j < headers.length; j++) {
+                tarr.push(data[j]);
+            }
+            lines.push(tarr);
+        }
+    }
+    return lines
+}
+
+function updateOpeningInDropdown() {
+
+    document.getElementById("openingInput").value = openingName;
+
+}
+
+function updateOpening() {
+
+    Openings.fetchOpenings().then(res => {
+        var lines = processCSV(res)
+        var opening = lines.find(elem => elem[3] == game.pgn());
+        console.log(opening)
+        if (opening) {
+            openingName = opening[2]
+        } else {
+            openingName = null
+        }
+        updateOpeningOnMap()
+        updateOpeningInDropdown()
+    })
+
+}
+
 
 // update the board position after the piece snap
 // for castling, en passant, pawn promotion
@@ -69,7 +117,6 @@ function updateStatus() {
     }
 
     $status.html(status)
-    $fen.html(game.fen())
     $pgn.html(game.pgn())
 }
 
@@ -79,12 +126,12 @@ document.addEventListener("DOMContentLoaded", function () {
     // ----------------------------------------------------------------------------
     // Load necessary data
     Utils.prepareMap().then(arr => {
-        const metaData = arr[0];
+        metaData = arr[0];
 
         // Get the names of all recorded openings as well as the gradients
         // (Based on the positions with below and above average probability for each opening)
         const openings = metaData['openings'];
-        let openingGradients = {};
+        openingGradients = {};
         const negPositions = metaData['negative_positions']
         const posPositions = metaData['positive_positions']
 
@@ -93,19 +140,16 @@ document.addEventListener("DOMContentLoaded", function () {
             openingGradients[name] = Colors.getOpeningGradient(negPositions, posPositions)
         }
 
-        // TODO: Make dropdown invisible and select opening from dropdown
-        var openingDropdown = Utils.openingDropdown(openings);
-        openingDropdown.style.display = 'block';
-        var openingName = 'Ruy Lopez: Closed';
+        Utils.fillDropdown(openings);
 
         // e4/d4 information
         const e4Positions = metaData['e4_positions'];
         const d4Positions = metaData['d4_positions'];
-        const countriesData = arr[1];
-        var e4d4Gradient = Colors.getE4D4Gradient(e4Positions, d4Positions);
+        countriesData = arr[1];
+        e4d4Gradient = Colors.getE4D4Gradient(e4Positions, d4Positions);
 
         // Add a tile layer (the map background)
-        const map = L.map('map', {
+        map = L.map('map', {
             worldCopyJump: true
         })
             .setView([0, 0], 3);
@@ -126,80 +170,6 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }).addTo(map);
 
-        // ----------------------------------------------------------------------------
-        // Buttons to change the map view (base vs. e4d4)
-        // ----------------------------------------------------------------------------
-        const CustomControl = L.Control.extend({
-            onAdd: function () {
-                const container = L.DomUtil.create('div', 'custom-control');
-                L.DomEvent.disableClickPropagation(container); // Prevent clicks on the control from affecting the map
-
-                const baseButton = L.DomUtil.create('button', '', container);
-                baseButton.innerHTML = 'Base';
-                baseButton.addEventListener('click', () => switchToBase());
-
-                const e4d4Button = L.DomUtil.create('button', '', container);
-                e4d4Button.innerHTML = 'E4/D4 split';
-                e4d4Button.addEventListener('click', () => switchToE4D4());
-
-                const openingButton = L.DomUtil.create('button', '', container);
-                openingButton.innerHTML = 'Openings';
-                openingButton.addEventListener('click', () => switchToOpening());
-
-                return container;
-            },
-            options: {
-                position: 'bottomright'
-            }
-        });
-
-        map.addControl(new CustomControl());
-
-
-        function switchToBase() {
-            if (document.body.contains(openingDropdown)) {
-                document.body.removeChild(openingDropdown);
-            }
-            if (countryLayer) {
-                countryLayer.remove();
-            }
-            countryLayer = L.geoJSON(countriesData, {
-                onEachFeature: Countries.onEachCountryBase,
-                style: {
-                    fillColor: '#F28F3A',
-                    weight: 2,
-                    opacity: 1,
-                    color: 'white',
-                    fillOpacity: 0.7
-                }
-            }).addTo(map);
-        }
-
-        function switchToE4D4() {
-            if (document.body.contains(openingDropdown)) {
-                document.body.removeChild(openingDropdown);
-            }
-            if (countryLayer) {
-                countryLayer.remove();
-            }
-            countryLayer = L.geoJSON(countriesData, {
-                onEachFeature: Countries.onEachCountryE4D4,
-                style: (feature) => Colors.countryStyle(feature, e4d4Gradient, 'E4_D4')
-            }).addTo(map);
-        }
-
-        function switchToOpening() {
-            document.body.appendChild(openingDropdown);
-            if (countryLayer) {
-                countryLayer.remove();
-            }
-            countryLayer = L.geoJSON(countriesData, {
-                onEachFeature: (feature, layer) => Countries.onEachCountryOpening(
-                    feature, layer, openingName
-                ),
-                style: (feature) => Colors.countryStyle(feature, openingGradients[openingName], openingName)
-            }).addTo(map);
-        }
     });
 
     // chess board
@@ -217,4 +187,56 @@ document.addEventListener("DOMContentLoaded", function () {
     updateStatus()
 
 });
+
+function switchToBase() {
+    if (countryLayer) {
+        countryLayer.remove();
+    }
+    countryLayer = L.geoJSON(countriesData, {
+        onEachFeature: Countries.onEachCountryBase,
+        style: {
+            fillColor: '#F28F3A',
+            weight: 2,
+            opacity: 1,
+            color: 'white',
+            fillOpacity: 0.7
+        }
+    }).addTo(map);
+}
+
+function switchToE4D4() {
+    if (countryLayer) {
+        countryLayer.remove();
+    }
+    countryLayer = L.geoJSON(countriesData, {
+        onEachFeature: Countries.onEachCountryE4D4,
+        style: (feature) => Colors.countryStyle(feature, e4d4Gradient, 'E4_D4')
+    }).addTo(map);
+}
+
+function updateOpeningOnMap() {
+
+    if (!openingName) {
+        switchToBase()
+        return
+    }
+    if (countryLayer) {
+        countryLayer.remove();
+    }
+    countryLayer = L.geoJSON(countriesData, {
+        onEachFeature: (feature, layer) => Countries.onEachCountryOpening(
+            feature, layer, openingName
+        ),
+        style: (feature) => Colors.countryStyle(feature, openingGradients[openingName], openingName)
+    }).addTo(map);
+
+}
+
+function switchToOpening() {
+    if (countryLayer) {
+        countryLayer.remove();
+    }
+    updateOpeningOnMap()
+}
+
 

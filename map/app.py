@@ -20,6 +20,12 @@ def metadata():
         return file.read()
 
 
+@app.route("/openings")
+def openings():
+    with open("../data/openings/openings.csv", "r") as file:
+        return file.read()
+
+
 @app.route("/img/chesspieces/wikipedia/<string:piece>")
 def img(piece):
     return send_file(
