@@ -4,6 +4,8 @@ from pyspark.sql.functions import col, count, lower
 
 from src import DATA_DIRECTORY
 
+#TODO: Create unique ID per opening in the CSV; Use it instead of matched_name in downstream steps
+
 def run(file_name: str = 'test_cleaned.parquet.gzip'):
     '''
     Read a parquet file of games and the played openings and turn it into a parquet of number of openings
