@@ -4,6 +4,7 @@ from pandas import merge, read_parquet
 from tqdm import tqdm
 
 from src import DATA_DIRECTORY
+from src.parse.utils.openings import OpeningLoader
 
 class EnrichGeoJSON:
     def __init__(self, country_openings_parquet: str = "test_cleaned_openings.parquet.gzip"):
@@ -43,10 +44,12 @@ class EnrichGeoJSON:
             .apply(lambda x: min(num_positions + 1, max(round((x - share_min) / step_size) + 1, 1)))
 
     def add_openings(self):
-        known_openings = self.country_df.groupby('matched_name')['matched_name'].count().index.tolist()
-        self.meta_json['openings'] = known_openings
+        known_openings = self.country_df.groupby('matched_id')['matched_id'].count().index.tolist()
+        df = OpeningLoader().df
+        metadata = {}
+
         for opening in tqdm(known_openings, desc='Adding openings to geojson'):
-            opening_df = self.country_df.loc[self.country_df['matched_name'] == opening]
+            opening_df = self.country_df.loc[self.country_df['matched_id'] == opening]
             opening_dict = {
                 country: (position, share)
                 for country, position, share in
@@ -59,6 +62,14 @@ class EnrichGeoJSON:
                 country_tuple = opening_dict.get(properties['ISO_A3'], (0, 0))
                 properties[f'{opening}_POS'] = country_tuple[0]
                 properties[opening] = country_tuple[1]
+
+            # Save moves and name of the opening for the metadata
+            row = df.loc[df['id']==opening]
+            metadata[opening] = {'name': row['name'].values[0], 'pgn': row['pgn'].values[0]}
+
+        # Add moves and display name to openings in meta_json
+        self.meta_json['openings'] = metadata
+
 
     def add_player_counts(self):
         # TODO: Remove the E4/D4 dummy in favor of correct data

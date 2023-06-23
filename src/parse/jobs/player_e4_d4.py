@@ -22,8 +22,8 @@ def run(file_name: str = 'test_cleaned.parquet.gzip'):
 
     # 1. Identify openings that start with e4 or d4
     loader = OpeningLoader()
-    e4_openings = loader.df.loc[loader.df["pgn"].str.contains("1. e4"), "name"].to_list()
-    d4_openings = loader.df.loc[loader.df["pgn"].str.contains("1. d4"), "name"].to_list()
+    e4_openings = loader.df.loc[loader.df['pgn'].str.contains('1. e4'), 'id'].to_list()
+    d4_openings = loader.df.loc[loader.df['pgn'].str.contains('1. d4'), 'id'].to_list()
 
     # 2. Spark preparation; Load the parquet file; Prepare the udf
     spark = SparkSession.builder \
@@ -32,23 +32,23 @@ def run(file_name: str = 'test_cleaned.parquet.gzip'):
         .getOrCreate()
     df = spark.read.parquet(str(in_path))
 
-    def e4d4_map(opening_name: str):
-        if opening_name in e4_openings:
+    def e4d4_map(opening_id: str):
+        if opening_id in e4_openings:
             return 'e4'
-        elif opening_name in d4_openings:
+        elif opening_id in d4_openings:
             return 'd4'
         return 'other'
     e4d4_udf = udf(e4d4_map, StringType())
 
-    # 3. Replace opening names with e4, d4 or other; Group by id and first_move; Sum count_w
-    df = df.withColumn("first_move", e4d4_udf(df['matched_name']))\
-        .drop('matched_name') \
+    # 3. Replace opening ids with e4, d4 or other; Group by id and first_move; Sum count_w
+    df = df.withColumn('first_move', e4d4_udf(df['matched_id']))\
+        .drop('matched_id') \
         .drop('count_b') \
         .drop('count') \
         .drop('username') \
         .groupBy('id', 'first_move') \
         .sum('count_w') \
-        .withColumnRenamed("sum(count)", "count")
+        .withColumnRenamed('sum(count)', 'count')
 
     # 3. Save the result and stop spark session
     df.write.parquet(str(out_path))
