@@ -31,12 +31,20 @@
     Utils.fillDropdown = function (openings) {
         var datalist = document.getElementById('openingSuggestions')
 
-        openings.forEach(function (opening) {
-            var newOption = document.createElement("option");
-            newOption.value = Utils.cleanOpeningName(opening[2]);
-            newOption.text = opening
-            datalist.appendChild(newOption);
-        });
+        // for (openingId in openings) {
+        //     var newOption = document.createElement("option");
+        //     newOption.value = openings[openingId]['name']
+
+        //     datalist.appendChild(newOption);
+        // };
+
+        options = ''
+        for (openingId in openings) {
+            options += '<option value="' + openings[openingId]['name'] + '" data-value="' + openingId + '" />';
+        }
+
+        datalist.innerHTML = options;
+
     }
 
     global.Utils = Utils;

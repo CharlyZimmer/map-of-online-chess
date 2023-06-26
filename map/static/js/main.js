@@ -1,7 +1,7 @@
 var board = null
 var game = new Chess()
 var $status = $('#status')
-var $pgn = $('#pgn')
+var pgn = ''
 var currentOpening = null;
 var metaData = null
 var e4d4Gradient = null
@@ -9,7 +9,6 @@ var map = null
 var countryLayer = null
 var countriesData = null
 var openingGradients = null
-var openings = null
 
 // code for only allowing legal moves by https://chessboardjs.com/examples#5000
 function onDragStart(source, piece, position, orientation) {
@@ -35,25 +34,35 @@ function onDrop(source, target) {
     if (move === null) return 'snapback'
 
     updateStatus()
-    updateOpening()
+    updateOpeningAfterMove()
+
+    console.log(game.pgn())
 
 }
 
 function updateOpeningInDropdown() {
 
-    document.getElementById("openingInput").value = currentOpening[2];
+    if (!currentOpening) {
+        document.getElementById("openingInput").value = ''
+        return
+    }
+
+    document.getElementById("openingInput").value = currentOpening['data']['name'];
 
 }
 
-function updateOpening() {
+function updateOpeningAfterMove() {
 
-    var opening = openings.find(elem => elem[3] == game.pgn());
-    console.log(opening)
-    if (opening) {
-        currentOpening = opening
-    } else {
-        currentOpening = null
+    currentOpening = null
+
+    for (openingId in metaData['openings']) {
+        elem = metaData['openings'][openingId]
+        if (elem['pgn'] == game.pgn()) {
+            currentOpening = { 'id': openingId, 'data': elem }
+            break
+        }
     }
+    console.log(currentOpening)
     updateOpeningOnMap()
     updateOpeningInDropdown()
 
@@ -95,7 +104,6 @@ function updateStatus() {
     }
 
     $status.html(status)
-    $pgn.html(game.pgn())
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -108,51 +116,40 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Get the names of all recorded openings as well as the gradients
         // (Based on the positions with below and above average probability for each opening)
-        // const openings = metaData['openings'];
-        Openings.fetchOpenings().then(res => {
-            openings = res
-            console.log(openings)
+        const negPositions = metaData['negative_positions']
+        const posPositions = metaData['positive_positions']
 
-            openingGradients = {};
-            const negPositions = metaData['negative_positions']
-            const posPositions = metaData['positive_positions']
+        openingGradients = Colors.getOpeningGradient(negPositions, posPositions)
 
-            for (let i = 0; i < openings.length; i++) {
-                var name = openings[i][2];
-                openingGradients[name] = Colors.getOpeningGradient(negPositions, posPositions)
-            }
+        Utils.fillDropdown(metaData['openings']);
 
-            Utils.fillDropdown(openings);
+        // e4/d4 information
+        const e4Positions = metaData['e4_positions'];
+        const d4Positions = metaData['d4_positions'];
+        countriesData = arr[1];
+        e4d4Gradient = Colors.getE4D4Gradient(e4Positions, d4Positions);
 
-            // e4/d4 information
-            const e4Positions = metaData['e4_positions'];
-            const d4Positions = metaData['d4_positions'];
-            countriesData = arr[1];
-            e4d4Gradient = Colors.getE4D4Gradient(e4Positions, d4Positions);
-
-            // Add a tile layer (the map background)
-            map = L.map('map', {
-                worldCopyJump: true
-            })
-                .setView([0, 0], 3);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
-
-            // Add base view to map
-            countryLayer = L.geoJSON(countriesData, {
-                onEachFeature: Countries.onEachCountryBase,
-                style: {
-                    fillColor: '#F28F3A',
-                    weight: 2,
-                    opacity: 1,
-                    color: 'white',
-                    fillOpacity: 0.7
-                }
-            }).addTo(map);
-
+        // Add a tile layer (the map background)
+        map = L.map('map', {
+            worldCopyJump: true
         })
+            .setView([0, 0], 3);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Add base view to map
+        countryLayer = L.geoJSON(countriesData, {
+            onEachFeature: Countries.onEachCountryBase,
+            style: {
+                fillColor: '#F28F3A',
+                weight: 2,
+                opacity: 1,
+                color: 'white',
+                fillOpacity: 0.7
+            }
+        }).addTo(map);
 
     });
 
@@ -209,9 +206,9 @@ function updateOpeningOnMap() {
     }
     countryLayer = L.geoJSON(countriesData, {
         onEachFeature: (feature, layer) => Countries.onEachCountryOpening(
-            feature, layer, currentOpening[2]
+            feature, layer, currentOpening['data']['name']
         ),
-        style: (feature) => Colors.countryStyle(feature, openingGradients[currentOpening[2]], currentOpening[2])
+        style: (feature) => Colors.countryStyle(feature, openingGradients, currentOpening['data']['name'])
     }).addTo(map);
 
 }
@@ -225,14 +222,31 @@ function switchToOpening() {
 
 function updateOpeningOnBoard() {
 
+    // TODO: read UCI from currentOpening
+    board.position('rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq - 0 1')
+
+    game.load('rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq - 0 1')
+    // game.loadPgn('1. d4 d5 2. c4')
+
+    updateStatus()
+    console.log(game.pgn())
+
     return
 
 }
 
 function openingInputChangedHandler() {
 
-    openingName = document.getElementById('openingInput').value
-    currentOpening = openings.find(elem => elem[2] == openingName);
+    displayName = document.getElementById('openingInput').value
+    var selectedOption = document.querySelector('#openingSuggestions option[value="' + displayName + '"]');
+    console.log(selectedOption)
+    if (!selectedOption) {
+        currentOpening = null
+        switchToBase()
+        return
+    }
+    newId = selectedOption.dataset.value
+    currentOpening = { 'id': newId, 'data': metaData['openings'][newId] };
     updateOpeningOnMap()
     updateOpeningOnBoard()
 
