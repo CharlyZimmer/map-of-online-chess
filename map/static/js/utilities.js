@@ -33,7 +33,8 @@
 
         openings.forEach(function (opening) {
             var newOption = document.createElement("option");
-            newOption.text = Utils.cleanOpeningName(opening);
+            newOption.value = Utils.cleanOpeningName(opening[2]);
+            newOption.text = opening
             datalist.appendChild(newOption);
         });
     }

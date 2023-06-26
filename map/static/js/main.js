@@ -2,13 +2,14 @@ var board = null
 var game = new Chess()
 var $status = $('#status')
 var $pgn = $('#pgn')
-var openingName = 'Ruy Lopez: Closed';
+var currentOpening = null;
 var metaData = null
 var e4d4Gradient = null
 var map = null
 var countryLayer = null
 var countriesData = null
 var openingGradients = null
+var openings = null
 
 // code for only allowing legal moves by https://chessboardjs.com/examples#5000
 function onDragStart(source, piece, position, orientation) {
@@ -38,46 +39,23 @@ function onDrop(source, target) {
 
 }
 
-// https://stackoverflow.com/questions/7431268/how-to-read-data-from-csv-file-using-javascript
-function processCSV(allText) {
-    var allTextLines = allText.split(/\r\n|\n/);
-    var headers = allTextLines[0].split(',');
-    var lines = [];
-
-    for (var i = 1; i < allTextLines.length; i++) {
-        var data = allTextLines[i].split(',');
-        if (data.length == headers.length) {
-
-            var tarr = [];
-            for (var j = 0; j < headers.length; j++) {
-                tarr.push(data[j]);
-            }
-            lines.push(tarr);
-        }
-    }
-    return lines
-}
-
 function updateOpeningInDropdown() {
 
-    document.getElementById("openingInput").value = openingName;
+    document.getElementById("openingInput").value = currentOpening[2];
 
 }
 
 function updateOpening() {
 
-    Openings.fetchOpenings().then(res => {
-        var lines = processCSV(res)
-        var opening = lines.find(elem => elem[3] == game.pgn());
-        console.log(opening)
-        if (opening) {
-            openingName = opening[2]
-        } else {
-            openingName = null
-        }
-        updateOpeningOnMap()
-        updateOpeningInDropdown()
-    })
+    var opening = openings.find(elem => elem[3] == game.pgn());
+    console.log(opening)
+    if (opening) {
+        currentOpening = opening
+    } else {
+        currentOpening = null
+    }
+    updateOpeningOnMap()
+    updateOpeningInDropdown()
 
 }
 
@@ -130,45 +108,51 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Get the names of all recorded openings as well as the gradients
         // (Based on the positions with below and above average probability for each opening)
-        const openings = metaData['openings'];
-        openingGradients = {};
-        const negPositions = metaData['negative_positions']
-        const posPositions = metaData['positive_positions']
+        // const openings = metaData['openings'];
+        Openings.fetchOpenings().then(res => {
+            openings = res
+            console.log(openings)
 
-        for (let i = 0; i < openings.length; i++) {
-            var name = openings[i];
-            openingGradients[name] = Colors.getOpeningGradient(negPositions, posPositions)
-        }
+            openingGradients = {};
+            const negPositions = metaData['negative_positions']
+            const posPositions = metaData['positive_positions']
 
-        Utils.fillDropdown(openings);
-
-        // e4/d4 information
-        const e4Positions = metaData['e4_positions'];
-        const d4Positions = metaData['d4_positions'];
-        countriesData = arr[1];
-        e4d4Gradient = Colors.getE4D4Gradient(e4Positions, d4Positions);
-
-        // Add a tile layer (the map background)
-        map = L.map('map', {
-            worldCopyJump: true
-        })
-            .setView([0, 0], 3);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
-
-        // Add base view to map
-        countryLayer = L.geoJSON(countriesData, {
-            onEachFeature: Countries.onEachCountryBase,
-            style: {
-                fillColor: '#F28F3A',
-                weight: 2,
-                opacity: 1,
-                color: 'white',
-                fillOpacity: 0.7
+            for (let i = 0; i < openings.length; i++) {
+                var name = openings[i][2];
+                openingGradients[name] = Colors.getOpeningGradient(negPositions, posPositions)
             }
-        }).addTo(map);
+
+            Utils.fillDropdown(openings);
+
+            // e4/d4 information
+            const e4Positions = metaData['e4_positions'];
+            const d4Positions = metaData['d4_positions'];
+            countriesData = arr[1];
+            e4d4Gradient = Colors.getE4D4Gradient(e4Positions, d4Positions);
+
+            // Add a tile layer (the map background)
+            map = L.map('map', {
+                worldCopyJump: true
+            })
+                .setView([0, 0], 3);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // Add base view to map
+            countryLayer = L.geoJSON(countriesData, {
+                onEachFeature: Countries.onEachCountryBase,
+                style: {
+                    fillColor: '#F28F3A',
+                    weight: 2,
+                    opacity: 1,
+                    color: 'white',
+                    fillOpacity: 0.7
+                }
+            }).addTo(map);
+
+        })
 
     });
 
@@ -216,7 +200,7 @@ function switchToE4D4() {
 
 function updateOpeningOnMap() {
 
-    if (!openingName) {
+    if (!currentOpening) {
         switchToBase()
         return
     }
@@ -225,9 +209,9 @@ function updateOpeningOnMap() {
     }
     countryLayer = L.geoJSON(countriesData, {
         onEachFeature: (feature, layer) => Countries.onEachCountryOpening(
-            feature, layer, openingName
+            feature, layer, currentOpening[2]
         ),
-        style: (feature) => Colors.countryStyle(feature, openingGradients[openingName], openingName)
+        style: (feature) => Colors.countryStyle(feature, openingGradients[currentOpening[2]], currentOpening[2])
     }).addTo(map);
 
 }
@@ -237,6 +221,21 @@ function switchToOpening() {
         countryLayer.remove();
     }
     updateOpeningOnMap()
+}
+
+function updateOpeningOnBoard() {
+
+    return
+
+}
+
+function openingInputChangedHandler() {
+
+    openingName = document.getElementById('openingInput').value
+    currentOpening = openings.find(elem => elem[2] == openingName);
+    updateOpeningOnMap()
+    updateOpeningOnBoard()
+
 }
 
 

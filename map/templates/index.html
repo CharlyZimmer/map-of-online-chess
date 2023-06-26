@@ -34,7 +34,8 @@
             <div id="pgn"></div>
             <div>
                 <datalist id="openingSuggestions"></datalist>
-                <input id="openingInput" autoComplete="on" list="openingSuggestions" />
+                <input id="openingInput" onchange="openingInputChangedHandler()" autoComplete="on"
+                    list="openingSuggestions" />
             </div>
             <button id="buttonBase" onclick="switchToBase()">Base</button>
             <button id="buttonE4D4" onclick="switchToE4D4()">E4/D4 Split</button>
