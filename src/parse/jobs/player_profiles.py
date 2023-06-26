@@ -44,7 +44,7 @@ class PlayerAPI:
 
         # Load file with new player data (drop known players) and create ratelimiter
         df = read_parquet(parquet_path)
-        player_df = df.groupby('id')['matched_name'].count().reset_index().drop('matched_name', axis=1)
+        player_df = df.groupby('id')['matched_id'].count().reset_index().drop('matched_id', axis=1)
         player_df = player_df.loc[~player_df['id'].str.lower().isin(self.known_players.keys())]
         player_df = player_df.loc[(player_df['id'] != '?') & (player_df['id'].notna())].iloc[:max_players]
 

@@ -23,14 +23,15 @@ def process_game(game: chess.pgn.Game, opening_df: DataFrame, num_moves: int = 1
         -> Dict[str, str]:
     '''
     Parse a chess game into players, opening names and moves.
-    Name and moves will be taken both from the game data as well as a collection of known moves
+    Moves will be taken both from the game data as well as a collection of known moves;
+    Also save original name and ID if moves were matched
     :param game:        Instance of chess.pgn.Game
     :param opening_df:  DataFrame of known openings
     :param num_moves:   Number of moves to store per game
     :return:            Dictionary with the following keys:
                         - 'white':              Name of the white player
                         - 'black':              Name of the black player
-                        - 'matched_name':       Name of a known opening (Or None)
+                        - 'matched_id':         ID of a known opening (Or None)
                         - 'matched_moves':      Moves of the known opening (Or None)
                         - 'original_name':      Name of the opening according to the game record
                         - 'original_moves':     First num_moves of the game
@@ -46,11 +47,11 @@ def process_game(game: chess.pgn.Game, opening_df: DataFrame, num_moves: int = 1
     except:
         opening_name = 'Unknown'
     uci_str = ' '.join([move.uci() for move in game.mainline_moves()][:num_moves])
-    matched_name, matched_moves = match_opening(df=opening_df,
-                                               name=opening_name,
-                                               uci_str=uci_str)
+    matched_id, matched_moves = match_opening(df=opening_df,
+                                              name=opening_name,
+                                              uci_str=uci_str)
 
-    return {'white': w, 'black': b, 'matched_name': matched_name, 'matched_moves': matched_moves,
+    return {'white': w, 'black': b, 'matched_id': matched_id, 'matched_moves': matched_moves,
             'original_name': opening_name, 'original_moves': uci_str}
 
 
