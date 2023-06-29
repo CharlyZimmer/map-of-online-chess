@@ -106,8 +106,7 @@ function updateStatus() {
     $status.html(status)
 }
 
-$(document).ready(function () {
-    // document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", function () {
     // ----------------------------------------------------------------------------
     // Map preparation
     // ----------------------------------------------------------------------------
@@ -187,6 +186,7 @@ function switchToBase() {
 }
 
 function switchToE4D4() {
+    reset()
     if (countryLayer) {
         countryLayer.remove();
     }
@@ -214,12 +214,12 @@ function updateOpeningOnMap() {
 
 }
 
-function switchToOpening() {
-    if (countryLayer) {
-        countryLayer.remove();
-    }
-    updateOpeningOnMap()
-}
+// function switchToOpening() {
+//     if (countryLayer) {
+//         countryLayer.remove();
+//     }
+//     updateOpeningOnMap()
+// }
 
 function updateOpeningOnBoard() {
 

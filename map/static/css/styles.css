@@ -53,7 +53,10 @@
 }
 
 #openingInput {
-
     width: 100%;
+}
 
+.dropdownSubtext {
+    padding-top: 2px;
+    font-size: 12px;
 }

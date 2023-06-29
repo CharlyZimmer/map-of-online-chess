@@ -30,7 +30,7 @@
 
     function formatCustom(state) {
         return $(
-            '<div><div>' + state.text + '</div><div class="foo">'
+            '<div><div>' + state.text + '</div><div class="dropdownSubtext">'
             + state.pgn
             + '</div></div>'
         );
