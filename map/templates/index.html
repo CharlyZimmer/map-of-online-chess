@@ -21,6 +21,8 @@
     <script src="/static/js/openings.js"></script>
     <link rel="stylesheet" href="/static/css/styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 </head>
 
 <body>
@@ -30,16 +32,17 @@
         <div id="header">
             <label>Status:</label>
             <div id="status"></div>
-            <!-- <label>PGN:</label>
-            <div id="pgn"></div> -->
+            <label>PGN:</label>
+            <div id="pgn"></div>
             <div>
-                <datalist id="openingSuggestions"></datalist>
-                <input id="openingInput" onchange="openingInputChangedHandler()" autoComplete="on"
-                    list="openingSuggestions" />
+                <select id="openingInput">
+                    <option value="" disabled selected></option>
+                </select>
             </div>
             <button id="buttonBase" onclick="switchToBase()">Base</button>
             <button id="buttonE4D4" onclick="switchToE4D4()">E4/D4 Split</button>
             <button id="buttonOpenings" onclick="switchToOpening()">Openings</button>
+            <button id="buttonReset" onclick="reset()">Reset</button>
 
         </div>
     </div>

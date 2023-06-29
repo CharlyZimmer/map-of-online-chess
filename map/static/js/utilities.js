@@ -28,22 +28,40 @@
                 .replaceAll('_', ' ')
         );
 
+    function formatCustom(state) {
+        return $(
+            '<div><div>' + state.text + '</div><div class="foo">'
+            + state.pgn
+            + '</div></div>'
+        );
+    }
+
     Utils.fillDropdown = function (openings) {
-        var datalist = document.getElementById('openingSuggestions')
 
-        // for (openingId in openings) {
-        //     var newOption = document.createElement("option");
-        //     newOption.value = openings[openingId]['name']
-
-        //     datalist.appendChild(newOption);
-        // };
-
-        options = ''
+        formattedData = []
         for (openingId in openings) {
-            options += '<option value="' + openings[openingId]['name'] + '" data-value="' + openingId + '" />';
+            formattedData.push({
+                'id': openingId,
+                'text': openings[openingId]['name'],
+                'pgn': openings[openingId]['pgn']
+            })
         }
 
-        datalist.innerHTML = options;
+        $(document).ready(function () {
+            $('#openingInput').select2({
+                placeholder: 'Select an opening',
+                data: formattedData,
+                initSelection: function (element, callback) {
+                },
+                templateResult: formatCustom
+            });
+        });
+
+
+        // for (openingId in openings) {
+        //     var newOption = new Option(openings[openingId]['name'], openingId, false, false);
+        //     $('#openingInput').append(newOption);
+        // }
 
     }
 

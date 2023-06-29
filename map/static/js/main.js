@@ -1,7 +1,7 @@
 var board = null
 var game = new Chess()
 var $status = $('#status')
-var pgn = ''
+var $pgn = $('#pgn')
 var currentOpening = null;
 var metaData = null
 var e4d4Gradient = null
@@ -27,7 +27,7 @@ function onDrop(source, target) {
     var move = game.move({
         from: source,
         to: target,
-        promotion: 'q' // NOTE: always promote to a queen for example simplicity
+        promotion: 'q'
     })
 
     // illegal move
@@ -36,18 +36,18 @@ function onDrop(source, target) {
     updateStatus()
     updateOpeningAfterMove()
 
-    console.log(game.pgn())
-
 }
 
 function updateOpeningInDropdown() {
 
     if (!currentOpening) {
-        document.getElementById("openingInput").value = ''
+        $('#openingInput').val("")
+        $('#openingInput').trigger('change.select2');
         return
     }
 
-    document.getElementById("openingInput").value = currentOpening['data']['name'];
+    $('#openingInput').val(currentOpening['id'])
+    $('#openingInput').trigger('change.select2');
 
 }
 
@@ -62,7 +62,6 @@ function updateOpeningAfterMove() {
             break
         }
     }
-    console.log(currentOpening)
     updateOpeningOnMap()
     updateOpeningInDropdown()
 
@@ -103,10 +102,12 @@ function updateStatus() {
         }
     }
 
+    $pgn.html(game.pgn())
     $status.html(status)
 }
 
-document.addEventListener("DOMContentLoaded", function () {
+$(document).ready(function () {
+    // document.addEventListener("DOMContentLoaded", function () {
     // ----------------------------------------------------------------------------
     // Map preparation
     // ----------------------------------------------------------------------------
@@ -222,34 +223,55 @@ function switchToOpening() {
 
 function updateOpeningOnBoard() {
 
-    // TODO: read UCI from currentOpening
-    board.position('rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq - 0 1')
+    game.reset()
+    game.load_pgn(currentOpening['data']['pgn'])
 
-    game.load('rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq - 0 1')
-    // game.loadPgn('1. d4 d5 2. c4')
+    board.start()
+
+    moveHistory = game.history({ verbose: true });
+    while (moveHistory.length > 0) {
+        var p1Move = moveHistory.shift(),
+            p2Move = moveHistory.shift(),
+            p1c = p1Move.from + '-' + p1Move.to,
+            p2c = (p2Move == undefined) ? '' : p2Move.from + '-' + p2Move.to;
+        board.move(p1c)
+        board.move(p2c)
+        i++;
+    }
 
     updateStatus()
-    console.log(game.pgn())
-
-    return
 
 }
 
-function openingInputChangedHandler() {
+function reset() {
 
-    displayName = document.getElementById('openingInput').value
-    var selectedOption = document.querySelector('#openingSuggestions option[value="' + displayName + '"]');
-    console.log(selectedOption)
+    currentOpening = null
+    board.start()
+    game.reset()
+    $('#openingInput').val("")
+    $('#openingInput').trigger('change.select2');
+    switchToBase()
+    updateStatus()
+
+}
+
+$('#openingInput').on('select2:select', function (e) {
+
+    selectedOption = $('#openingInput').find(':selected');
+
     if (!selectedOption) {
         currentOpening = null
         switchToBase()
+        board.start()
+        game.reset()
+        updateStatus()
         return
     }
-    newId = selectedOption.dataset.value
+    newId = selectedOption.val()
     currentOpening = { 'id': newId, 'data': metaData['openings'][newId] };
     updateOpeningOnMap()
     updateOpeningOnBoard()
 
-}
+})
 
 
