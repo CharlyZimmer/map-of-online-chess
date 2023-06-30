@@ -1,6 +1,7 @@
 var board = null
+var $board = $('#board')
+var squareClass = 'square-55d63'
 var game = new Chess()
-var $status = $('#status')
 var $pgn = $('#pgn')
 var currentOpening = null;
 var metaData = null
@@ -32,6 +33,10 @@ function onDrop(source, target) {
 
     // illegal move
     if (move === null) return 'snapback'
+
+    $board.find('.' + squareClass).removeClass('highlight')
+    $board.find('.square-' + move.from).addClass('highlight')
+    $board.find('.square-' + move.to).addClass('highlight')
 
     updateStatus()
     updateOpeningAfterMove()
@@ -75,35 +80,7 @@ function onSnapEnd() {
 }
 
 function updateStatus() {
-    var status = ''
-
-    var moveColor = 'White'
-    if (game.turn() === 'b') {
-        moveColor = 'Black'
-    }
-
-    // checkmate?
-    if (game.in_checkmate()) {
-        status = 'Game over, ' + moveColor + ' is in checkmate.'
-    }
-
-    // draw?
-    else if (game.in_draw()) {
-        status = 'Game over, drawn position'
-    }
-
-    // game still on
-    else {
-        status = moveColor + ' to move'
-
-        // check?
-        if (game.in_check()) {
-            status += ', ' + moveColor + ' is in check'
-        }
-    }
-
     $pgn.html(game.pgn())
-    $status.html(status)
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -214,13 +191,6 @@ function updateOpeningOnMap() {
 
 }
 
-// function switchToOpening() {
-//     if (countryLayer) {
-//         countryLayer.remove();
-//     }
-//     updateOpeningOnMap()
-// }
-
 function updateOpeningOnBoard() {
 
     game.reset()
@@ -228,16 +198,22 @@ function updateOpeningOnBoard() {
 
     board.start()
 
+    lastMove = ('', '')
     moveHistory = game.history({ verbose: true });
     while (moveHistory.length > 0) {
         var p1Move = moveHistory.shift(),
             p2Move = moveHistory.shift(),
             p1c = p1Move.from + '-' + p1Move.to,
             p2c = (p2Move == undefined) ? '' : p2Move.from + '-' + p2Move.to;
+        lastMove = (p2Move == undefined) ? p1Move : p2Move
         board.move(p1c)
         board.move(p2c)
         i++;
     }
+
+    $board.find('.' + squareClass).removeClass('highlight')
+    $board.find('.square-' + lastMove.from).addClass('highlight')
+    $board.find('.square-' + lastMove.to).addClass('highlight')
 
     updateStatus()
 
@@ -250,6 +226,7 @@ function reset() {
     game.reset()
     $('#openingInput').val("")
     $('#openingInput').trigger('change.select2');
+    $board.find('.' + squareClass).removeClass('highlight')
     switchToBase()
     updateStatus()
 
