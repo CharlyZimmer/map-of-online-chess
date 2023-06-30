@@ -10,7 +10,7 @@
             } else {
                 throw new Error('Error fetching country JSON');
             }
-        } catch (error){
+        } catch (error) {
             console.error('Error:', error);
         }
     };
@@ -61,9 +61,10 @@
         var cleanedOpeningName = Utils.cleanOpeningName(openingName);
 
         alert(e.target.feature.properties.ADMIN + "\n"
-            + "- "+ e.target.feature.properties.PLAYER_COUNT + " players\n"
+            + "- " + e.target.feature.properties.PLAYER_COUNT + " players\n"
             + "- Probability (" + cleanedOpeningName + "): " +
             Math.round(e.target.feature.properties[openingName] * 1000) / 10 + "%\n");
+
     }
 
 
@@ -89,7 +90,7 @@
         });
     }
 
-    function highlightFeatureOpening(e){
+    function highlightFeatureOpening(e) {
         var layer = e.target;
         layer.setStyle({
             fillOpacity: 1,

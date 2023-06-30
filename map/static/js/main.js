@@ -198,7 +198,7 @@ function updateOpeningOnBoard() {
 
     board.start()
 
-    lastMove = ('', '')
+    lastMove = null
     moveHistory = game.history({ verbose: true });
     while (moveHistory.length > 0) {
         var p1Move = moveHistory.shift(),
