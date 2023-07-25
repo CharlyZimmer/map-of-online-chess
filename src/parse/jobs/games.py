@@ -38,8 +38,9 @@ def process_game(game: chess.pgn.Game, opening_df: DataFrame, num_moves: int = 1
     '''
 
     # Get player names
-    w = game.headers['White']
-    b = game.headers['Black']
+    header = game.headers
+    w = header['White']
+    b = header['Black']
 
     # Get opening name and first moves in uci notation to check with known openings
     try:
@@ -51,8 +52,15 @@ def process_game(game: chess.pgn.Game, opening_df: DataFrame, num_moves: int = 1
                                               name=opening_name,
                                               uci_str=uci_str)
 
+    # Get result, elos, and type of game
+    result = header['Result']
+    w_elo = header['WhiteElo']
+    b_elo = header['BlackElo']
+    event = header['Event']
+
     return {'white': w, 'black': b, 'matched_id': matched_id, 'matched_moves': matched_moves,
-            'original_name': opening_name, 'original_moves': uci_str}
+            'original_name': opening_name, 'original_moves': uci_str, 'result': result, 'w_elo': w_elo,
+            'b_elo': b_elo, 'event': event}
 
 
 def run(file_name: str = 'test_cleaned.pgn', partitions=10):
