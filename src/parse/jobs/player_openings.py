@@ -32,8 +32,7 @@ def run(file_name: str = 'test_cleaned.parquet.gzip'):
         .appName('Player Openings') \
         .getOrCreate()
     df = spark.read.parquet(str(in_path))
-    df_filtered = df.filter(col('matched_id').isNotNull())\
-        .filter(col('event').contains('Classical'))
+    df_filtered = df.filter(col('matched_id').isNotNull())
 
     # 2. Group players (across black and white) by their name and count the occurrence of openings
     df_grouped_a = df_filtered.groupBy('white', 'matched_id')\
