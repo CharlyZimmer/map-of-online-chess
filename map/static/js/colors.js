@@ -72,9 +72,10 @@
         return openingGradient;
     };
 
-    Colors.countryStyle = function (feature, gradient, opening_name){
+    // Optional TODO: Change color to suffix and color based on "W" / "B" or "WON_W" / "WON_B"
+    Colors.countryStyle = function (feature, gradient, currentOpening, color){
         return {
-            fillColor: '#' + gradient[feature.properties[opening_name+ '_POS']],
+            fillColor: '#' + gradient[feature.properties[currentOpening['id'] + '_POS_' + color]],
             weight: 2,
             opacity: 1,
             color: 'grey',

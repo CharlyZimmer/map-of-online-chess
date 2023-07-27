@@ -10,6 +10,8 @@ var map = null
 var countryLayer = null
 var countriesData = null
 var openingGradients = null
+//TODO: Change color dynamically
+var color = "W"
 
 // code for only allowing legal moves by https://chessboardjs.com/examples#5000
 function onDragStart(source, piece, position, orientation) {
@@ -184,9 +186,9 @@ function updateOpeningOnMap() {
     }
     countryLayer = L.geoJSON(countriesData, {
         onEachFeature: (feature, layer) => Countries.onEachCountryOpening(
-            feature, layer, currentOpening['data']['name']
+            feature, layer, currentOpening, color
         ),
-        style: (feature) => Colors.countryStyle(feature, openingGradients, currentOpening['data']['name'])
+        style: (feature) => Colors.countryStyle(feature, openingGradients, currentOpening, color)
     }).addTo(map);
 
 }

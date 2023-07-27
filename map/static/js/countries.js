@@ -50,20 +50,24 @@
     // --------------------------------------------------------------------------------------------------------------
     // Opening function: In addition to base functions, also show the probability for an opening on click
     // --------------------------------------------------------------------------------------------------------------
-    Countries.onEachCountryOpening = function (feature, layer, openingName) {
+    Countries.onEachCountryOpening = function (feature, layer, currentOpening, color) {
         layer.on({
-            click: (e) => countryClickOpening(e, openingName),
+            click: (e) => countryClickOpening(e, currentOpening, color),
             mouseover: highlightFeatureOpening,
             mouseout: resetHighlightOpening
         });
     }
-    function countryClickOpening(e, openingName) {
-        var cleanedOpeningName = Utils.cleanOpeningName(openingName);
+
+    function countryClickOpening(e, currentOpening, color) {
+        var openingName = currentOpening['data']['name'];
 
         alert(e.target.feature.properties.ADMIN + "\n"
             + "- " + e.target.feature.properties.PLAYER_COUNT + " players\n"
-            + "- Probability (" + cleanedOpeningName + "): " +
-            Math.round(e.target.feature.properties[openingName] * 1000) / 10 + "%\n");
+            + "- Probability played (" + openingName + "): " +
+            Math.round(e.target.feature.properties[currentOpening['id'] + "_" + color] * 1000) / 10 + "%\n"
+            + "- Won when played (" + openingName + "): " +
+            Math.round(e.target.feature.properties[currentOpening['id'] + "_WON_" + color] * 1000) / 10 + "%\n")
+            ;
 
     }
 
