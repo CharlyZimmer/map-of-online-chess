@@ -4,18 +4,17 @@ from pyspark.sql.functions import col, count, lower
 
 from src import DATA_DIRECTORY
 
+# TODO: Sum opening probabilities
+
 def run(file_name: str = 'test_cleaned.parquet.gzip'):
     '''
     Read a parquet file of games and the played openings and turn it into a parquet of number of openings
     played by each player. The output file has the following columns:
-        - id:           ID of a player (str)
-        - matched_id    ID of a known opening (str)
-        - count_w       Number of times that player played an opening as white (int)
-        - won_w         Number of times that player won with an opening as white (int)
-        - lost_w        Number of times that player lost with an opening as white (int)
-        - count_b       Number of times that player played an opening as black (int)
-        - won_b         Number of times that player won with an opening as black (int)
-        - lost_b        Number of times that player lost with an opening as black (int)
+        - id:                   ID of a player
+        - matched_id: 	        ID of a known opening
+        - count_w / count_b:    Number of times that player played an opening as white / black
+        - won_w / lost_w:       Number of times that player won / lost with an opening as white
+        - won_b / lost_b:       Number of times that player won / lost with an opening as black
 
     :param file_name:       Path to the parquet file containing games with openings
     '''
@@ -44,7 +43,7 @@ def run(file_name: str = 'test_cleaned.parquet.gzip'):
     df_counts = df_grouped_a.join(df_grouped_b, ['username', 'matched_id'], 'outer')\
         .fillna(0)
 
-    # 3. Count number of wins with opening per player and colour
+    # 3. Count number of wins with opening per player and color
     df_won_white = df_filtered.filter(col('result') == '1-0').groupBy('white', 'matched_id')\
         .agg(count('*').alias('won_w')).withColumnRenamed('white', 'username')
     df_lost_white = df_filtered.filter(col('result') == '0-1').groupBy('white', 'matched_id')\

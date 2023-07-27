@@ -1,3 +1,4 @@
+import itertools
 import json
 import os
 from pandas import merge, read_parquet
@@ -24,48 +25,52 @@ class EnrichGeoJSON:
         self._load_json_files()
         self._load_and_filter_df()
 
-    def get_color_positions(self, min_players: int = 20_000, num_positions: int = 500):
-        # Find the range of standardized values for countries with a minimum number of players
-        value_range = self.country_df.loc[self.country_df['num_players'] > min_players]\
-            .sort_values('standardized_share')['standardized_share']
-        share_max = value_range.iloc[-1]
-        share_min = value_range.iloc[0]
-        share_range = share_max - share_min
-        step_size = share_range / num_positions
+    def get_color_positions(self, max_val: float = 4.0, min_val: float = -4.0, num_positions: int = 400):
+        value_range = max_val - min_val
+        step_size = value_range / num_positions
 
         # Update the meta_json with number of positive and negative positions (relevant for color coding)
-        self.meta_json['positive_positions'] = round(abs(share_max)/share_range*num_positions)
-        self.meta_json['negative_positions'] = round(abs(share_min) / share_range * num_positions)
+        self.meta_json['positive_positions'] = round(abs(max_val) / value_range * num_positions)
+        self.meta_json['negative_positions'] = round(abs(min_val) / value_range * num_positions)
 
-        # Assign each country/opening combination their position
-        # - Outliers are set to min and max value
-        # - 1 is added as position 0 is reserved for unknown values
-        self.country_df['position'] = self.country_df['standardized_share']\
-            .apply(lambda x: min(num_positions + 1, max(round((x - share_min) / step_size) + 1, 1)))
+        suffixes = [''.join(tup) for tup in itertools.product(['', 'won_'], ['w', 'b'])]
+        for s in suffixes:
+            self.country_df[f'pos_{s}'] = (self.country_df[f'stand_p_{s}']
+                                           .apply(lambda p: self._get_position(p=p,
+                                                                               min_val=min_val,
+                                                                               step_size=step_size,
+                                                                               num_positions=num_positions)))
 
     def add_openings(self):
         known_openings = self.country_df.groupby('matched_id')['matched_id'].count().index.tolist()
         df = OpeningLoader().df
         metadata = {}
 
-        for opening in tqdm(known_openings, desc='Adding openings to geojson'):
+        # Replace any NaN values to create a correct JSON
+        self.country_df.fillna(value=0, inplace=True)
+
+        suffixes = [''.join(tup) for tup in itertools.product(['', 'won_'], ['w', 'b'])]
+        for opening in tqdm(known_openings, desc=f'Adding openings to geojson'):
             opening_df = self.country_df.loc[self.country_df['matched_id'] == opening]
-            opening_dict = {
-                country: (position, share)
-                for country, position, share in
-                zip(opening_df.country, opening_df.position, opening_df.share)
-            }
-            for country_feature in self.country_geojson['features']:
-                properties = country_feature['properties']
 
-                # If no information is available for a country, return 0, 0
-                country_tuple = opening_dict.get(properties['ISO_A3'], (0, 0))
-                properties[f'{opening}_POS'] = country_tuple[0]
-                properties[opening] = country_tuple[1]
+            # Loop over all suffixes for the opening (probability of playing/winning for white and black)
+            for s in suffixes:
+                opening_dict = {
+                    country: (position, probability)
+                    for country, position, probability in
+                    zip(opening_df.country, opening_df[f'pos_{s}'], opening_df[f'p_{s}'])
+                }
+                for country_feature in self.country_geojson['features']:
+                    properties = country_feature['properties']
 
-            # Save moves and name of the opening for the metadata
-            row = df.loc[df['id']==opening]
-            metadata[opening] = {'name': row['name'].values[0], 'pgn': row['pgn'].values[0]}
+                    # If no information is available for a country, return 0, 0
+                    country_tuple = opening_dict.get(properties['ISO_A3'], (0, 0))
+                    properties[f'{opening}_POS_{s.upper()}'] = country_tuple[0]
+                    properties[f'{opening}_{s.upper()}'] = country_tuple[1]
+
+                # Save moves and name of the opening for the metadata
+                row = df.loc[df['id'] == opening]
+                metadata[opening] = {'name': row['name'].values[0], 'pgn': row['pgn'].values[0]}
 
         # Add moves and display name to openings in meta_json
         self.meta_json['openings'] = metadata
@@ -124,6 +129,13 @@ class EnrichGeoJSON:
             json.dump(self.country_geojson, file)
         with open(self.meta_json_path, 'w') as file:
             json.dump(self.meta_json, file)
+
+    @staticmethod
+    def _get_position(p: float, min_val: float, step_size: float, num_positions: int):
+        try:
+            return min(num_positions + 1, max(round((p - min_val) / step_size) + 1, 1))
+        except:
+            return 0
 
     def run(self):
         '''
