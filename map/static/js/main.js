@@ -2,7 +2,7 @@ var board = null
 var $board = $('#board')
 var squareClass = 'square-55d63'
 var game = new Chess()
-var $pgn = $('#pgn')
+var $pgn = $('#pgnContent')
 var currentOpening = null;
 var metaData = null
 var e4d4Gradient = null
@@ -253,4 +253,14 @@ $('#openingInput').on('select2:select', function (e) {
 
 })
 
+function changeColor(checkbox) {
 
+    if (checkbox.checked) {
+        color = "B"
+    } else {
+        color = "W"
+    }
+
+    updateOpeningOnMap()
+
+}
