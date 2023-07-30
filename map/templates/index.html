@@ -31,16 +31,28 @@
         <div id="map"></div>
         <div id="board"></div>
         <div id="header">
-            <div>
-                <select id="openingInput">
-                    <option value="" disabled selected></option>
-                </select>
+            <div id="dropdownAndButtons">
+                <div>
+                    <select id="openingInput">
+                        <option value="" disabled selected></option>
+                    </select>
+                </div>
+                <div id="buttons">
+                    <button id="buttonReset" class="btn btn-dark btn-sm" onclick="reset()">Reset</button>
+                    <div id="colorToggle">
+                        <img id="wP" src="/img/chesspieces/wikipedia/wP.png">
+                        <label class="switch">
+                            <input id="colorCheckbox" type="checkbox" onclick="changeColor(this)">
+                            <span class="slider"></span>
+                        </label>
+                        <img id="bP" src="/img/chesspieces/wikipedia/bP.png">
+                    </div>
+                </div>
             </div>
-            <div id="buttons">
-                <button id="buttonE4D4" class="btn btn-dark btn-sm" onclick="switchToE4D4()">E4/D4</button>
-                <button id="buttonReset" class="btn btn-dark btn-sm" onclick="reset()">Reset</button>
+
+            <div id="pgn">
+                <div id="pgnContent"></div>
             </div>
-            <div id="pgn"></div>
 
         </div>
     </div>

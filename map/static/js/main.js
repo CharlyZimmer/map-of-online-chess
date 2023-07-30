@@ -2,7 +2,7 @@ var board = null
 var $board = $('#board')
 var squareClass = 'square-55d63'
 var game = new Chess()
-var $pgn = $('#pgn')
+var $pgn = $('#pgnContent')
 var currentOpening = null;
 var metaData = null
 var e4d4Gradient = null
@@ -248,9 +248,49 @@ $('#openingInput').on('select2:select', function (e) {
     }
     newId = selectedOption.val()
     currentOpening = { 'id': newId, 'data': metaData['openings'][newId] };
+    changeColorAfterDropdownChange()
     updateOpeningOnMap()
     updateOpeningOnBoard()
 
 })
 
+function changeColor(checkbox) {
 
+    if (checkbox.checked) {
+        color = "B"
+    } else {
+        color = "W"
+    }
+
+    updateOpeningOnMap()
+
+}
+
+function changeColorAfterDropdownChange() {
+
+    // preselect color based on the last move that was played
+    // count number of spaces in last turn
+    // 1 space = last move was white
+    // 2 spaces = last move was black
+    turns = currentOpening.data.pgn.split(".")
+    lastTurn = turns[turns.length - 1]
+    numberOfSpaces = (lastTurn.match(/ /g) || []).length
+    if (numberOfSpaces == 1) {
+        color = "W"
+    } else {
+        color = "B"
+    }
+
+    updateColorToggle()
+
+}
+
+function updateColorToggle() {
+
+    if (color == "W") {
+        $('#colorCheckbox').prop("checked", false)
+        return
+    }
+    $('#colorCheckbox').prop("checked", true)
+
+}
