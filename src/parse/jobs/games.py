@@ -2,11 +2,10 @@ from pyspark.sql import SparkSession
 import chess.pgn
 from io import StringIO
 import os
-from pandas import DataFrame
-from typing import Dict
+from typing import Dict, Sequence
 
 from src import DATA_DIRECTORY
-from src.parse.utils.openings import OpeningLoader, match_opening
+from src.parse.utils.openings import OpeningLoader, OpeningNode
 
 
 def parse_pgn(pgn_text: str) -> chess.pgn.Game:
@@ -19,14 +18,14 @@ def parse_pgn(pgn_text: str) -> chess.pgn.Game:
     game = chess.pgn.read_game(pgn_io)
     return game
 
-def process_game(game: chess.pgn.Game, opening_df: DataFrame, num_moves: int = 10) \
-        -> Dict[str, str]:
+def process_game(game: chess.pgn.Game, base_node: OpeningNode, num_moves: int = 10) -> Sequence[Dict]:
     '''
     Parse a chess game into players, opening names and moves.
     Moves will be taken both from the game data as well as a collection of known moves;
-    Also save original name and ID if moves were matched
+    One game will be split into 1 or more lines to reflect all matched openings. The longest matching move prefix
+    will be noted with 'real_game': 1. This means that counting all rows with real_game == 1 yields number of games
     :param game:        Instance of chess.pgn.Game
-    :param opening_df:  DataFrame of known openings
+    :param base_node:   Root node of the opening tree. Used to traverse tree; Has no valid opening associated with it
     :param num_moves:   Number of moves to store per game
     :return:            Dictionary with the following keys:
                         - 'white':              Name of the white player
@@ -36,11 +35,14 @@ def process_game(game: chess.pgn.Game, opening_df: DataFrame, num_moves: int = 1
                         - 'original_name':      Name of the opening according to the game record
                         - 'original_moves':     First num_moves of the game
     '''
-
-    # Get player names
+    # Get header information
     header = game.headers
     w = header['White']
     b = header['Black']
+    result = header['Result']
+    w_elo = header['WhiteElo']
+    b_elo = header['BlackElo']
+    event = header['Event']
 
     # Get opening name and first moves in uci notation to check with known openings
     try:
@@ -48,19 +50,37 @@ def process_game(game: chess.pgn.Game, opening_df: DataFrame, num_moves: int = 1
     except:
         opening_name = 'Unknown'
     uci_str = ' '.join([move.uci() for move in game.mainline_moves()][:num_moves])
-    matched_id, matched_moves = match_opening(df=opening_df,
-                                              name=opening_name,
-                                              uci_str=uci_str)
 
-    # Get result, elos, and type of game
-    result = header['Result']
-    w_elo = header['WhiteElo']
-    b_elo = header['BlackElo']
-    event = header['Event']
+    # Construct the dictionary of meta information
+    meta_dict = {'white': w, 'black': b, 'original_name': opening_name, 'original_moves': uci_str, 'result': result,
+                 'w_elo': w_elo, 'b_elo': b_elo, 'event': event}
 
-    return {'white': w, 'black': b, 'matched_id': matched_id, 'matched_moves': matched_moves,
-            'original_name': opening_name, 'original_moves': uci_str, 'result': result, 'w_elo': w_elo,
-            'b_elo': b_elo, 'event': event}
+    # Identify all openings with matching move prefix by traversing the tree of openings
+    # The first element is dropped as it is the base opening (if that fails, no match was found)
+    try:
+        result_list = _opening_tree_traversal(uci_str, base_node)[1:]
+    except:
+        result_list = {'matched_id': None, 'matched_moves': None, 'real_game': 1}
+
+    # Create the final list by pairing the meta_dict with each element in th result_list
+    return [{**meta_dict, **move_dict} for move_dict in result_list]
+
+def _opening_tree_traversal(uci_str: str, node: OpeningNode):
+    result = []
+    if uci_str.startswith(node.uci):
+        result_dict = {'matched_id': node.opening_id, 'matched_moves': node.uci, 'real_game': 0}
+
+        subtree_result = []
+        for child in node.children:
+            if uci_str.startswith(child.uci):
+                subtree_result = _opening_tree_traversal(uci_str, child)
+
+        if len(subtree_result) == 0:
+            result_dict['real_game'] = 1
+
+        result = [result_dict, *subtree_result]
+
+    return result
 
 
 def run(file_name: str = 'test_cleaned.pgn', partitions=10):
@@ -71,9 +91,9 @@ def run(file_name: str = 'test_cleaned.pgn', partitions=10):
     out_path = out_dir / file_name.replace('.pgn', '.parquet.gzip')
     os.makedirs(os.path.dirname(out_dir), exist_ok=True)
 
-    # Get the openings df
+    # Get the base_node of the opening tree
     loader = OpeningLoader()
-    opening_df = loader.df
+    base_node = loader.get_base_node()
 
     # 1. Spark preparation
     spark = SparkSession.builder.getOrCreate()
@@ -86,7 +106,7 @@ def run(file_name: str = 'test_cleaned.pgn', partitions=10):
     games = data.map(lambda game_str: parse_pgn(game_str))
 
     # 3. Extract the relevant information per game and save the results as a parquet file
-    parsed_df = games.map(lambda game: process_game(game=game, opening_df=opening_df)).toDF()
+    parsed_df = games.flatMap(lambda game: process_game(game=game, base_node=base_node)).toDF()
     parsed_df.write.parquet(str(out_path))
 
     sc.stop()

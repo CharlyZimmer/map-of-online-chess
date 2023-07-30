@@ -1,4 +1,6 @@
+from anytree import NodeMixin, RenderTree
 import hashlib
+import numpy as np
 from os.path import isfile
 from pandas import DataFrame, concat, read_csv, Series
 from pathlib import Path
@@ -6,12 +8,157 @@ from typing import Tuple
 
 from src import DATA_DIRECTORY
 
+# ============================================================================
+# Tree structures
+# ============================================================================
+class OpeningNode(NodeMixin):
+    '''
+    Basic node class to create a tree structure where leafs have the same move prefix as their parents
+    '''
+    def __init__(self, opening_id: str, uci: str, parent=None, children=None):
+        self.opening_id = opening_id
+        self.uci = uci
+        self.parent = parent
+        if children:
+            self.children = children
+
+
+class CountUpdater:
+    '''
+    Class to add counts (for games played, won, lost) from leaf openings to their respective base openings.
+
+    Reason for update:
+    As each opening is recorded based on the last move made, the probabilities of common base openings like Queen's Pawn
+    are lower than their actual numbers. They are only counted if all moves after the base deviate from known openings
+    '''
+    def __init__(self, df: DataFrame, base_node: OpeningNode):
+        self.full_df = df
+        self.base_node = base_node
+        self.cols = ['count_w', 'won_w', 'lost_w', 'count_b', 'won_b', 'lost_b']
+
+    def update_player_counts(self, player_id: str):
+        '''
+        Update the counts (for games played, won, lost) for a given player by traversing through the tree of openings.
+        :param player_id:   ID of the player on lichess; String
+        '''
+        # Get the part of the full_df with data specific to the player
+        self.df = self.full_df.loc[self.full_df['id'] == player_id]
+
+        # Get all unique openings played and use them to identify the base openings for that player
+        # Base openings are those for which the player played no parent opening
+        candidate_list = self.df.matched_id.unique().tolist()
+        _, base_list = self._identify_base_openings(node=self.base_node,
+                                                    candidate_list=candidate_list,
+                                                    base_list=[])
+
+        # Update the counts by going down the opening tree from each opening in the base_list
+        for node in base_list:
+            self._update_subtree_count(node=node, player_id=player_id)
+
+        # Concat with the full dataframe and remove duplicates
+        self.full_df = (concat([self.full_df, self.df])
+                        .drop_duplicates(['id', 'matched_id'], keep='last')
+                        .sort_values(['id', 'matched_id'], ascending=False)
+                        .reset_index(drop=True))
+
+    def _update_subtree_count(self, node: OpeningNode, player_id: str):
+        '''
+        Recursive function to update the counts starting from a specified node
+        :param node:            Current node; Instance of OpeningNode
+        :param player_id:       ID of the player on lichess; String
+        :return:                Numpy array with the sum of the current counts and all sub_counts
+        '''
+        # Get the summed array of counts for all openings with the same initial moves as the current opening
+        sub_counts = np.zeros(6)
+        for child in node.children:
+            sub_counts = np.add(sub_counts, self._update_subtree_count(node=child, player_id=player_id))
+
+        # Get the count array for the current opening and add it to the sub_counts
+        row = self.df.loc[self.df['matched_id'] == node.opening_id]
+        own_count = np.zeros(6) if row.shape[0] == 0 else row[self.cols].values
+        result = np.add(sub_counts, own_count)
+
+        # Update the DataFrame with the new row if the result contains positive values
+        if np.sum(result) > 0 and node.opening_id != '':
+            df_new = DataFrame(data=[[player_id, node.opening_id, *result[0].tolist()]],
+                               columns=['id', 'matched_id', *self.cols])
+
+            # Insert a new row or update the existing one
+            self.df = (concat([self.df, df_new])
+                       .drop_duplicates(['matched_id'], keep='last')
+                       .sort_values(['matched_id'], ascending=False)
+                       .reset_index(drop=True))
+
+        return result.copy()
+
+    def _identify_base_openings(self, node, candidate_list, base_list, in_parent_branch=False):
+        '''
+        Recursive function to identify which openings from a list of candidates have no parent nodes in the tree
+        :param node:                Current node; Instance of OpeningNode
+        :param candidate_list:      List of opening IDs (str)
+        :param base_list:           List of instances of OpeningNode
+        :param in_parent_branch:    Whether a parent was already identified for the current subtree
+        :return:
+        '''
+        if node.opening_id in candidate_list:
+            candidate_list.remove(node.opening_id)
+            if not in_parent_branch:
+                base_list.append(node)
+                in_parent_branch = True
+
+        for child in node.children:
+            candidate_list, base_list = self._identify_base_openings(child, candidate_list, base_list, in_parent_branch)
+
+        return candidate_list, base_list
+
+
+# ============================================================================
+# DataFrame loading
+# ============================================================================
 class OpeningLoader:
     def __init__(self, path: Path = DATA_DIRECTORY / 'openings'):
         self.path = path
         self.df_path = path / 'openings.csv'
 
         self._load_df()
+        self._create_tree()
+
+    def get_base_node(self) -> OpeningNode:
+        return self.tree.node
+
+    def get_heritage_df(self):
+        '''
+        Creates a DataFrame with columns 'child_id' and 'parent_id' that records which event is the parent
+        to another opening (Meaning the child opening starts with the moves of the parent)
+        :return:    The DataFrame with heritage information
+        '''
+        base_openings = self.get_base_node().children
+        self.heritage_df = DataFrame(columns=['child_id', 'parent_id'])
+
+        for node in base_openings:
+            self._update_heritage_df(node=node, parent_id=None)
+
+        return self.heritage_df
+
+
+    def _update_heritage_df(self, node: OpeningNode, parent_id: str):
+        new_row = DataFrame(data=[[node.opening_id, parent_id]],
+                            columns=['child_id', 'parent_id'])
+        self.heritage_df = concat([self.heritage_df, new_row])
+        for child in node.children:
+            self._update_heritage_df(child, node.opening_id)
+
+
+    def _create_tree(self):
+        base_node = OpeningNode(opening_id='', uci='')
+        current_node = base_node
+        for uci, opening_id in self.df.sort_values('uci')[['uci', 'id']].values:
+
+            while not uci.startswith(current_node.uci):
+                current_node = current_node.parent
+            current_node = OpeningNode(opening_id=opening_id, uci=uci, parent=current_node)
+
+        self.tree = RenderTree(base_node)
 
     def _load_df(self):
         if isfile(f'{self.df_path}'):
@@ -51,7 +198,6 @@ class OpeningLoader:
         part2 = str(int(hashlib.md5(row['uci'].encode()).hexdigest(), 16))[0:4]
         row['id'] = f'{row["eco"]}-{part1}-{part2}'
         return row
-
 
 def match_opening(df: DataFrame, name: str, uci_str: str) -> Tuple[str, str]:
     '''

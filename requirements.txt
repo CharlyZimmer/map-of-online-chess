@@ -1,3 +1,4 @@
+anytree==2.9.0
 berserk==0.12.4
 chess==1.9.4
 flask==2.2.3
