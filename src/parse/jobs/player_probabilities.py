@@ -5,8 +5,8 @@ from pyspark.sql.functions import col, sum
 
 from src import DATA_DIRECTORY
 
-def run(file_name: str = 'test_cleaned.parquet.gzip',
-        known_players_parquet: str = 'known_players.parquet.gzip'):
+def run(file_name: str = 'test_cleaned.parquet',
+        known_players_parquet: str = 'known_players.parquet'):
     '''
     Calculates probabilities for all player-openings combinations and attaches country information.
     The output file has the following columns:

@@ -3,7 +3,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, count, lower, sum
 
 from src import DATA_DIRECTORY
-def run(file_name: str = 'test_cleaned.parquet.gzip'):
+def run(file_name: str = 'test_cleaned.parquet'):
     '''
     Read a parquet file of games and the played openings and turn it into a parquet of number of openings
     played by each player. The output file has the following columns:

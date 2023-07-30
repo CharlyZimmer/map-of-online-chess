@@ -4,7 +4,7 @@ from pyspark.sql.functions import col, count, mean, stddev
 
 from src import DATA_DIRECTORY
 
-def run(file_name: str = "test_cleaned_prob.parquet.gzip", min_games: int = 10):
+def run(file_name: str = "test_cleaned_prob.parquet", min_games: int = 10):
     '''
     Creates a DataFrame with country / opening combinations and probabilities for playing / winning on country level.
     These probabilities are also standardized with global mean and standard deviation for openings
@@ -60,7 +60,7 @@ def run(file_name: str = "test_cleaned_prob.parquet.gzip", min_games: int = 10):
                                                              mean('p_won_b').alias('mean_p_won_b'),
                                                              stddev('p_won_b').alias('std_p_won_b')
                                                              ).fillna(0)
-    global_mean_std_df.write.parquet(str(DATA_DIRECTORY / 'openings/opening_mean_std.parquet.gzip'),
+    global_mean_std_df.write.parquet(str(DATA_DIRECTORY / 'openings/opening_mean_std.parquet'),
                                      mode='overwrite')
 
     # 7. Use mean and stddev to standardize the country probabilities

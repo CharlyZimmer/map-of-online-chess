@@ -88,7 +88,7 @@ def run(file_name: str = 'test_cleaned.pgn', partitions=10):
     # Paths and directories
     in_path = DATA_DIRECTORY / f'pgn/{file_name}'
     out_dir = DATA_DIRECTORY / f'output/games'
-    out_path = out_dir / file_name.replace('.pgn', '.parquet.gzip')
+    out_path = out_dir / file_name.replace('.pgn', '.parquet')
     os.makedirs(os.path.dirname(out_dir), exist_ok=True)
 
     # Get the base_node of the opening tree

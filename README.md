@@ -13,7 +13,7 @@ Simply run the following command:
 - `USER_AGENT`: User agent to use with Nominatim (e.g. your mail-address)
 
 ```
-make prepare_data  COUNTRY_PARQUET=test_openings.parquet.gzip USER_AGENT='[NAME]@[MAIL_SERVICE]'
+make prepare_data  COUNTRY_PARQUET=test_openings.parquet USER_AGENT='[NAME]@[MAIL_SERVICE]'
 ```
 
 For the detailed steps on other operating systems, please refer to the instructions below.
@@ -33,14 +33,14 @@ Run the following make command with the required arguments:
 - `USER_AGENT`: User agent to use with Nominatim (e.g. your mail-address)
 
 ```
-make parse_countries COUNTRY_PARQUET=test_openings.parquet.gzip USER_AGENT='[NAME]@[MAIL_SERVICE]'
+make parse_countries COUNTRY_PARQUET=test_openings.parquet USER_AGENT='[NAME]@[MAIL_SERVICE]'
 ```
 
 #### Add the player counts to each country
 After downloading the `countries.geojson` file and parsing the country information for each player, run the following command to add player counts to each country in the geoJSON file:
 - `COUNTRY_PARQUET`: Name of the .parquet-file with openings per country (In the [data/output/countries](data/output/countries) directory)
 ```
-make enrich_geojson COUNTRY_PARQUET=test_cleaned.parquet.gzip
+make enrich_geojson COUNTRY_PARQUET=test_cleaned.parquet
 ```
 
 #### Install JavaScript Dependencies

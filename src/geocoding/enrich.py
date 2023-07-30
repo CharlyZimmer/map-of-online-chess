@@ -8,7 +8,7 @@ from src import DATA_DIRECTORY
 from src.parse.utils.openings import OpeningLoader
 
 class EnrichGeoJSON:
-    def __init__(self, country_openings_parquet: str = "test_cleaned_openings.parquet.gzip"):
+    def __init__(self, country_openings_parquet: str = "test_cleaned_openings.parquet"):
         '''
         :param country_openings_parquet:    File name of the parquet containing country-opening combinations
         '''
@@ -17,7 +17,7 @@ class EnrichGeoJSON:
 
         # Define paths
         self.country_openings_path = countries_path / country_openings_parquet
-        self.known_countries_path: str = countries_path / "known_countries.parquet.gzip"
+        self.known_countries_path: str = countries_path / "known_countries.parquet"
         self.geojson_path = json_dir / 'countries.geojson'
         self.meta_json_path = json_dir / 'enrichment_metadata.json'
 

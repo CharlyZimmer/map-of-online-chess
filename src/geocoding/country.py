@@ -12,14 +12,14 @@ from src import DATA_DIRECTORY
 
 class ParquetParser:
     def __init__(self, user_agent: str = 'abc@test.de',
-                 known_countries_parquet: str = 'known_countries.parquet.gzip'):
+                 known_countries_parquet: str = 'known_countries.parquet'):
         """
         Initialize the parser with the path to a parquet file with country information
         and a user_agent for geocoding with Nominatim
         :param user_agent:                  String to use for identification with Nominatim (An email-address suffices)
         :param known_countries_parquet:     (Optional) Name to the file containing country locations
                                             (In the data/output/countries directory)
-                                            Default: 'known_countries.parquet.gzip'
+                                            Default: 'known_countries.parquet'
                                             Will be used to read known locations and write results after completion
         """
         self.user_agent = user_agent
@@ -37,7 +37,7 @@ class ParquetParser:
             self.known_countries = {}
 
     def update_known_countries(
-            self, new_countries_parquet="test_openings.parquet.gzip"
+            self, new_countries_parquet="test_openings.parquet"
     ):
         """
         Add ISO_A2, ISO_A3, and country name to a parquet file of openings per counts.

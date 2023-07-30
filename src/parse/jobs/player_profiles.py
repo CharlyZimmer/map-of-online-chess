@@ -8,7 +8,7 @@ from src import DATA_DIRECTORY
 
 class PlayerAPI:
     def __init__(self, token: str,
-                 known_players_parquet: str = "known_players.parquet.gzip"):
+                 known_players_parquet: str = "known_players.parquet"):
         '''
 
         :param token:                   Token for the lichess API (https://lichess.org/api#section/Introduction/Authentication)
@@ -26,7 +26,7 @@ class PlayerAPI:
         session = berserk.TokenSession(token)
         self.client = berserk.Client(session=session)
 
-    def update_known_players(self, new_players_parquet: str = 'test.parquet.gzip',
+    def update_known_players(self, new_players_parquet: str = 'test.parquet',
                              request_size: int = 300,
                              ratelimit_players: int = 8_000,
                              ratelimit_sec: int = 10*60,
@@ -40,7 +40,7 @@ class PlayerAPI:
         :param max_players:             How many players to request in one job (daily limit); default 120_000
         '''
         parquet_path = DATA_DIRECTORY / f'output/players/{new_players_parquet}'
-        temp_path = str(self.parquet_path).replace('.parquet.gzip', '_temp.parquet.gzip')
+        temp_path = str(self.parquet_path).replace('.parquet', '_temp.parquet')
 
         # Load file with new player data (drop known players) and create ratelimiter
         df = read_parquet(parquet_path)
@@ -69,7 +69,7 @@ class PlayerAPI:
             os.remove(temp_path)
 
 
-def run(token: str, file_name: str = 'test_cleaned.parquet.gzip'):
+def run(token: str, file_name: str = 'test_cleaned.parquet'):
     api = PlayerAPI(token)
     api.update_known_players(new_players_parquet=file_name)
 
