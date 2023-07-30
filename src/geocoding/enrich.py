@@ -94,7 +94,7 @@ class EnrichGeoJSON:
     def _load_and_filter_df(self):
         # 1. Load the parquet files
         country_df = read_parquet(self.country_openings_path)
-        player_counts = read_parquet(str(self.country_openings_path).replace('openings', 'player_count'))
+        player_counts = read_parquet(str(self.country_openings_path).replace('.p', '_player_count.p'))
         known_country_df = read_parquet(self.known_countries_path)
         self.meta_json['num_countries'] = len(known_country_df)
 

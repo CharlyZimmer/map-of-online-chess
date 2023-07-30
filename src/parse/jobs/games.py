@@ -107,7 +107,7 @@ def run(file_name: str = 'test_cleaned.pgn', partitions=10):
 
     # 3. Extract the relevant information per game and save the results as a parquet file
     parsed_df = games.flatMap(lambda game: process_game(game=game, base_node=base_node)).toDF()
-    parsed_df.write.parquet(str(out_path))
+    parsed_df.write.parquet(str(out_path), mode='overwrite')
 
     sc.stop()
 

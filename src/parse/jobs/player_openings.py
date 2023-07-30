@@ -7,11 +7,12 @@ def run(file_name: str = 'test_cleaned.parquet.gzip'):
     '''
     Read a parquet file of games and the played openings and turn it into a parquet of number of openings
     played by each player. The output file has the following columns:
-        - id:                   ID of a player
-        - matched_id: 	        ID of a known opening
-        - count_w / count_b:    Number of times that player played an opening as white / black
-        - won_w / lost_w:       Number of times that player won / lost with an opening as white
-        - won_b / lost_b:       Number of times that player won / lost with an opening as black
+        - id:                           ID of a player
+        - matched_id: 	                ID of a known opening
+        - count_w / count_b:            Number of times that player played an opening as white / black
+        - won_w / lost_w:               Number of times that player won / lost with an opening as white
+        - won_b / lost_b:               Number of times that player won / lost with an opening as black
+        - real_game_w / real_game_b:    How many times this opening was the longest identified sequence of moves
 
     :param file_name:       Path to the parquet file containing games with openings
     '''
@@ -31,21 +32,18 @@ def run(file_name: str = 'test_cleaned.parquet.gzip'):
     df_filtered = df.filter(col('matched_id').isNotNull())
 
     # 2. Group players (across black and white) by their name and count the occurrence of openings
-    df_grouped_a = df_filtered.groupBy('white', 'matched_id') \
-        .agg(count('*').alias('count_w')).withColumnRenamed('white', 'username')
-    df_grouped_b = df_filtered.groupBy('black', 'matched_id') \
-        .agg(count('*').alias('count_b')).withColumnRenamed('black', 'username')
-
     # Count all "real games" (Games are recorded multiple time but the longest matched opening only once)
-    df_real_w = df_filtered.filter(col('real_game') == 1).groupBy('white', 'matched_id')\
-        .agg(sum('real_game').alias('real_game_w')).withColumnRenamed('white', 'username')
-    df_real_b = df_filtered.filter(col('real_game') == 1).groupBy('black', 'matched_id') \
-        .agg(sum('real_game').alias('real_game_b')).withColumnRenamed('black', 'username')
+    df_grouped_w = df_filtered.groupBy('white', 'matched_id') \
+        .agg(count('*').alias('count_w'),
+             sum('real_game').alias('real_game_w')) \
+        .withColumnRenamed('white', 'username')
+    df_grouped_b = df_filtered.groupBy('black', 'matched_id') \
+        .agg(count('*').alias('count_b'),
+             sum('real_game').alias('real_game_b')) \
+        .withColumnRenamed('black', 'username')
 
     # Outer join with 0 fill to keep all rows and get correct sum; Add an id column for API calls
-    df_tmp_1 = df_grouped_a.join(df_grouped_b, ['username', 'matched_id'], 'outer').fillna(0)
-    df_tmp_2 = df_tmp_1.join(df_real_w, ['username', 'matched_id'], 'outer').fillna(0)
-    df_counts = df_tmp_2.join(df_real_b, ['username', 'matched_id'], 'outer').fillna(0)
+    df_counts = df_grouped_w.join(df_grouped_b, ['username', 'matched_id'], 'outer').fillna(0)
 
     # 3. Count number of wins with opening per player and color
     df_won_w = df_filtered.filter(col('result') == '1-0').groupBy('white', 'matched_id')\

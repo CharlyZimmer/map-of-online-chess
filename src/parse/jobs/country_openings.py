@@ -1,143 +1,79 @@
 import os
-from pandas import concat, DataFrame, merge, read_parquet
-from typing import Tuple
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, count, mean, stddev
 
 from src import DATA_DIRECTORY
 
-def load_and_filter_data(player_openings_parquet: str = "test_cleaned.parquet.gzip",
-                         known_players_parquet: str = "known_players.parquet.gzip",
-                         min_games: int = 10,) -> DataFrame:
+def run(file_name: str = "test_cleaned_prob.parquet.gzip", min_games: int = 10):
     '''
-    Creates a DataFrame with player / opening combinations and how often they played / won / lost with it.
-    The columns are:
-        - id:                   ID of a player
-        - matched_id: 	        ID of a known opening
-        - count_w / count_b:    Number of times that player played an opening as white / black
-        - won_w / lost_w:       Number of times that player won / lost with an opening as white
-        - won_b / lost_b:       Number of times that player won / lost with an opening as black
-        - country:              Country of the player as obtained by the lichess API
+    Creates a DataFrame with country / opening combinations and probabilities for playing / winning on country level.
+    These probabilities are also standardized with global mean and standard deviation for openings
+    The output file has the following columns:
+        - country:                          Country name as recorded in the player profiles
+        - matched_id: 	                    ID of a known opening
+        - p_w / p_b                         Probability for playing an opening as white/black
+        - p_won_w / p_won_b                 Probability for winning as white/black when an opening was played
+        - stand_p_w / stand_p_b             z-Score standardized playing probabilities
+        - stand_p_won_w / stand_p_won_b     z-Score standardized winning probabilities
 
-    :param player_openings_parquet:     File name of the parquet file containing player/opening combinations
-    :param known_players_parquet:       File name of the parquet file containing the country information for each player
-    :param min_games:                   Minimum number of games for a player to be considered in country probabilities
-
-    :return:                            DataFrame with the aforementioned columns
+    :param file_name:     File name of the parquet file containing probability values for player/opening combinations
+    :param min_games:     Minimum number of games for a player to be considered in country probabilities
     '''
 
-    # 1. Load the player openings parquet
-    openings_path = DATA_DIRECTORY / f'output/players/{player_openings_parquet}'
-    openings_df = read_parquet(openings_path)
-
-    # 2. Load the DataFrame of known players and keep only those with country information
-    known_path = DATA_DIRECTORY / f'output/players/{known_players_parquet}'
-    known_df = read_parquet(known_path).drop_duplicates(subset=['id'])
-    known_df = known_df.loc[known_df.country.notna()][['id', 'country']]
-
-    # 3. Keep only players for which the country is known
-    openings_df = openings_df.loc[openings_df.id.isin(known_df.id)]
-
-    # 4. Keep only players that have a minimum number of games
-    num_games = openings_df.groupby('id')['count_w'].sum() + openings_df.groupby('id')['count_b'].sum()
-    considered_players = num_games.loc[num_games >= min_games].index.to_list()
-    openings_df = openings_df.loc[openings_df.id.isin(considered_players)]
-
-    return openings_df.merge(known_df, on='id')
-
-def get_global_mean_std(openings_df: DataFrame) -> Tuple[DataFrame, DataFrame]:
-    '''
-    Creates a DataFrame of openings and their global values for mean and standard deviation.
-    The columns are:
-        - mean_p_w / mean_p_b:              Global mean probability for an opening played as white/black
-        - mean_p_won_w / mean_p_lost_w:     Global mean for winning / losing with an opening as white
-        - mean_p_won_b / mean_p_lost_b:     Global mean for winning / losing with an opening as black
-        - std_p_w, std_p_b,... :            Standard deviation for the same events as described for the mean values
-
-    :param openings_df:                     DataFrame as produced by load_and_filter_data;
-                                            Contains how often each player played / won with / lost with an opening
-
-    :return:                                DataFrame with the aforementioned columns;
-                                            Updated openings_df with probabilities on player level
-    '''
-    global_mean_std = DataFrame()
-    for color in ['w', 'b']:
-        # 1a. Calculate the probability per opening for each player
-        openings_df[f'p_{color}'] = openings_df[f'count_{color}'] \
-            .div(openings_df.groupby('id')[f'count_{color}'].transform('sum'))
-
-        # 1b. Calculate probability of winning and losing for each player-opening-combination
-        openings_df[f'p_won_{color}'] = openings_df[f'won_{color}'] / openings_df[f'count_{color}']
-        openings_df[f'p_lost_{color}'] = openings_df[f'lost_{color}'] / openings_df[f'count_{color}']
-
-        # 2. Calculate global mean and standard deviation for opening and win/loose probabilities
-        global_mean_std[[f'mean_p_{color}', f'mean_p_won_{color}', f'mean_p_lost_{color}']] = (
-            openings_df.groupby('matched_id')[[f'p_{color}', f'p_won_{color}', f'p_lost_{color}']].mean())
-
-        global_mean_std[[f'std_p_{color}', f'std_p_won_{color}', f'std_p_lost_{color}']] = (
-            openings_df.groupby('matched_id')[[f'p_{color}', f'p_won_{color}', f'p_lost_{color}']].std())
-
-    return global_mean_std, openings_df
-
-
-def get_country_probabilities(openings_df: DataFrame, global_mean_std: DataFrame) -> DataFrame:
-    # Join all observed combinations of country and opening with mean and standard deviation values
-    df = openings_df.groupby(['country', 'matched_id']).count().reset_index()[['country', 'matched_id']]
-    df = merge(global_mean_std, df, on='matched_id', how='right')
-
-    for color in ['w', 'b']:
-        # 1. Calculate the probabilities per opening for each country (played, won, and lost)
-        tmp_df = (openings_df.groupby(['country', 'matched_id'])[[f'p_{color}', f'p_won_{color}', f'p_lost_{color}']]
-                  .mean().reset_index())
-        df = merge(df, tmp_df, on=['matched_id', 'country'], how='right')
-
-        # 2. Standardize the country_opening DataFrames using z-score (mean and std)
-        # 2a. Standardize probabilities for an opening being played
-        df[f'stand_p_{color}'] = ((df[f'p_{color}'] - df[f'mean_p_{color}'])
-                                   / (1.e-17 + df[f'std_p_{color}']))
-
-        # 2b. Probabilities for winning with an opening
-        df[f'stand_p_won_{color}'] = ((df[f'p_won_{color}'] - df[f'mean_p_won_{color}'])
-                                       / (1.e-17 + df[f'std_p_won_{color}']))
-
-        # 2c. Probabilities for losing with an opening
-        df[f'stand_p_lost_{color}'] = ((df[f'p_lost_{color}'] - df[f'mean_p_lost_{color}'])
-                                        / (1.e-17 + df[f'std_p_lost_{color}']))
-
-    # 3. Drop all columns used for standardization (mean_p_* and std_p_*); Get country column in front
-    df = df[df.columns.drop(list(df.filter(regex='mean_p_*')))]
-    df = df[df.columns.drop(list(df.filter(regex='std_p_*')))]
-
-    return df
-
-
-
-def get_country_dfs(openings_df: DataFrame) -> Tuple[DataFrame, DataFrame]:
-    # Calculate mean and standard deviation for opening probabilities and win/loss per color on global level
-    global_mean_std, openings_df = get_global_mean_std(openings_df)
-
-    # Calculate values on country level and standardize them
-    country_opening_df = get_country_probabilities(openings_df, global_mean_std)
-
-    # Finalize DataFrames and save global means and standard deviations
-    global_mean_std.to_parquet(
-        str(DATA_DIRECTORY / 'openings/opening_mean_std.parquet.gzip'),
-        compression='gzip'
-    )
-    country_player_count_df = openings_df.groupby('country')['id'].count() \
-        .reset_index().rename(columns={'id': 'num_players'})
-
-    return country_opening_df, country_player_count_df
-
-def run(file_name: str = "test_cleaned.parquet.gzip"):
+    # 1. Load the dataframe
+    in_path = DATA_DIRECTORY / f'output/players/{file_name}'
     out_dir = DATA_DIRECTORY / f'output/countries'
-    out_path = out_dir / file_name
-    if not os.path.isdir(out_dir):
-        os.makedirs(out_dir)
+    out_path = out_dir / file_name.replace('_prob.p', '.p')
+    os.makedirs(os.path.dirname(out_dir), exist_ok=True)
 
-    openings_df = load_and_filter_data(player_openings_parquet=file_name)
-    country_opening_df, country_player_count_df = get_country_dfs(openings_df=openings_df)
+    # 2. Prepare spark
+    spark = SparkSession.builder \
+        .config('spark.driver.memory', '4g') \
+        .appName('Player Probabilities') \
+        .getOrCreate()
+    spark.sparkContext.setCheckpointDir('./checkpoints')
 
-    country_opening_df.to_parquet(str(out_path).replace('.parquet', '_openings.parquet'))
-    country_player_count_df.to_parquet(str(out_path).replace('.parquet', '_player_count.parquet'))
+    # 3. Load the probabilities parquet and only keep players with country information and the minimum number of games
+    player_df = spark.read.parquet(str(in_path)) \
+        .filter(col('country').isNotNull()) \
+        .filter(col('total_count_w') + col('total_count_b') > min_games)
+
+    # 4. Count players per country and save the result
+    country_player_count_df = player_df.groupBy('country').agg(count('id').alias('num_players'))
+    country_player_count_df.write.parquet(str(out_path).replace('.parquet', '_player_count.parquet'),
+                                          mode='overwrite')
+
+    # 5. Group by country and calculate the mean values
+    country_df = player_df.groupBy('country', 'matched_id').agg(mean('p_w').alias('p_w'),
+                                                                mean('p_b').alias('p_b'),
+                                                                mean('p_won_w').alias('p_won_w'),
+                                                                mean('p_won_b').alias('p_won_b')
+                                                                )
+
+    # 6. Find the global mean and stddev per opening; Save the result
+    global_mean_std_df = player_df.groupBy('matched_id').agg(mean('p_w').alias('mean_p_w'),
+                                                             stddev('p_w').alias('std_p_w'),
+                                                             mean('p_b').alias('mean_p_b'),
+                                                             stddev('p_b').alias('std_p_b'),
+                                                             mean('p_won_w').alias('mean_p_won_w'),
+                                                             stddev('p_won_w').alias('std_p_won_w'),
+                                                             mean('p_won_b').alias('mean_p_won_b'),
+                                                             stddev('p_won_b').alias('std_p_won_b')
+                                                             ).fillna(0)
+    global_mean_std_df.write.parquet(str(DATA_DIRECTORY / 'openings/opening_mean_std.parquet.gzip'),
+                                     mode='overwrite')
+
+    # 7. Use mean and stddev to standardize the country probabilities
+    result = country_df.join(global_mean_std_df, on='matched_id') \
+        .withColumn('stand_p_w', (col('p_w') - col('mean_p_w')) / (col('std_p_w') + 1.e-17)) \
+        .withColumn('stand_p_b', (col('p_b') - col('mean_p_b')) / (col('std_p_b') + 1.e-17)) \
+        .withColumn('stand_p_won_w', (col('p_won_w') - col('mean_p_won_w')) / (col('std_p_won_w') + 1.e-17)) \
+        .withColumn('stand_p_won_b', (col('p_won_b') - col('mean_p_won_b')) / (col('std_p_won_b') + 1.e-17)) \
+        .select(['country', 'matched_id', 'p_w', 'p_b', 'p_won_w', 'p_won_b',
+                 'stand_p_w', 'stand_p_b', 'stand_p_won_w', 'stand_p_won_b'])
+
+    result.write.parquet(str(out_path), mode='overwrite')
+    spark.stop()
 
 
 if __name__ == '__main__':

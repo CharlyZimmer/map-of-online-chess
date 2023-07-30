@@ -40,7 +40,7 @@ make parse_countries COUNTRY_PARQUET=test_openings.parquet.gzip USER_AGENT='[NAM
 After downloading the `countries.geojson` file and parsing the country information for each player, run the following command to add player counts to each country in the geoJSON file:
 - `COUNTRY_PARQUET`: Name of the .parquet-file with openings per country (In the [data/output/countries](data/output/countries) directory)
 ```
-make enrich_geojson COUNTRY_PARQUET=test_openings.parquet.gzip
+make enrich_geojson COUNTRY_PARQUET=test_cleaned.parquet.gzip
 ```
 
 #### Install JavaScript Dependencies
