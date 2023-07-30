@@ -77,19 +77,10 @@ class EnrichGeoJSON:
 
 
     def add_player_counts(self):
-        # TODO: Remove the E4/D4 dummy in favor of correct data
-        self.meta_json['d4_positions'] = 250
-        self.meta_json['e4_positions'] = 250
-
         count_dict = self.player_counts.set_index('country')['num_players'].to_dict()
         for country_feature in self.country_geojson['features']:
             properties = country_feature['properties']
             properties['PLAYER_COUNT'] = count_dict.get(properties['ISO_A3'], 0)
-
-            # TODO: Remove the E4/D4 dummy in favor of correct data
-            properties['E4_D4_POS'] = 0
-            properties['E4'] = 0
-            properties['D4'] = 0
 
     def _load_and_filter_df(self):
         # 1. Load the parquet files
