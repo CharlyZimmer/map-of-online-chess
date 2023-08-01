@@ -1,6 +1,7 @@
 import berserk
 import os
 from pandas import concat, DataFrame, read_parquet
+from numpy import in1d
 from ratelimiter import RateLimiter
 from tqdm import tqdm
 
@@ -18,10 +19,8 @@ class PlayerAPI:
         self.parquet_path = DATA_DIRECTORY / f'output/players/{known_players_parquet}'
         if os.path.isfile(self.parquet_path):
             self.known_df = read_parquet(self.parquet_path).drop_duplicates(subset=['id'])
-            self.known_players = self.known_df.set_index('id').to_dict(orient='index')
         else:
             self.known_df = DataFrame()
-            self.known_players = {}
 
         session = berserk.TokenSession(token)
         self.client = berserk.Client(session=session)
@@ -43,9 +42,10 @@ class PlayerAPI:
         temp_path = str(self.parquet_path).replace('.parquet', '_temp.parquet')
 
         # Load file with new player data (drop known players) and create ratelimiter
-        df = read_parquet(parquet_path)
-        player_df = df.groupby('id')['matched_id'].count().reset_index().drop('matched_id', axis=1)
-        player_df = player_df.loc[~player_df['id'].str.lower().isin(self.known_players.keys())]
+        df = read_parquet(parquet_path, columns=['id'])
+        player_df = DataFrame(data=df['id'].unique(), columns=['id'])
+        df = None
+        player_df = player_df.loc[~player_df['id'].str.lower().isin(self.known_df['id'].values)]
         player_df = player_df.loc[(player_df['id'] != '?') & (player_df['id'].notna())].iloc[:max_players]
 
         lichess_rate_limiter = RateLimiter(max_calls=ratelimit_players // request_size, period=ratelimit_sec)
