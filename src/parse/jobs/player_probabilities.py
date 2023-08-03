@@ -22,13 +22,13 @@ def run(file_name: str = 'test_cleaned.parquet',
     :param known_players_parquet:   File name of the parquet file containing the country information for each player
     '''
 
-    # 1. Load the dataframe
+    # 1. Prepare folders
     in_path = DATA_DIRECTORY / f'output/players/{file_name}'
     out_dir = DATA_DIRECTORY / f'output/players'
     out_path = out_dir / file_name.replace('.p', '_prob.p')
     os.makedirs(os.path.dirname(out_dir), exist_ok=True)
 
-    # 2. Prepare spark
+    # 2. Prepare spark and load the dataframe
     spark = SparkSession.builder \
         .config('spark.driver.memory', '4g') \
         .appName('Player Probabilities') \

@@ -20,7 +20,7 @@ def run(file_name: str = "test_cleaned_prob.parquet", min_games: int = 10):
     :param min_games:     Minimum number of games for a player to be considered in country probabilities
     '''
 
-    # 1. Load the dataframe
+    # 1. Prepare folders
     in_path = DATA_DIRECTORY / f'output/players/{file_name}'
     out_dir = DATA_DIRECTORY / f'output/countries'
     out_path = out_dir / file_name.replace('_prob.p', '.p')
