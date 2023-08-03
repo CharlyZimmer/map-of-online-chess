@@ -15,9 +15,10 @@ class OpeningNode(NodeMixin):
     '''
     Basic node class to create a tree structure where leafs have the same move prefix as their parents
     '''
-    def __init__(self, opening_id: str, uci: str, parent=None, children=None):
+    def __init__(self, opening_id: str, uci: str, pgn: str, parent=None, children=None):
         self.opening_id = opening_id
         self.uci = uci
+        self.pgn = pgn
         self.parent = parent
         if children:
             self.children = children
@@ -31,9 +32,9 @@ class CountUpdater:
     As each opening is recorded based on the last move made, the probabilities of common base openings like Queen's Pawn
     are lower than their actual numbers. They are only counted if all moves after the base deviate from known openings
     '''
-    def __init__(self, df: DataFrame, base_node: OpeningNode):
+    def __init__(self, df: DataFrame, root_node: OpeningNode):
         self.full_df = df
-        self.base_node = base_node
+        self.root_node = root_node
         self.cols = ['count_w', 'won_w', 'lost_w', 'count_b', 'won_b', 'lost_b']
 
     def update_player_counts(self, player_id: str):
@@ -47,7 +48,7 @@ class CountUpdater:
         # Get all unique openings played and use them to identify the base openings for that player
         # Base openings are those for which the player played no parent opening
         candidate_list = self.df.matched_id.unique().tolist()
-        _, base_list = self._identify_base_openings(node=self.base_node,
+        _, base_list = self._identify_base_openings(node=self.root_node,
                                                     candidate_list=candidate_list,
                                                     base_list=[])
 
@@ -123,7 +124,7 @@ class OpeningLoader:
         self._load_df()
         self._create_tree()
 
-    def get_base_node(self) -> OpeningNode:
+    def get_root_node(self) -> OpeningNode:
         return self.tree.node
 
     def get_heritage_df(self):
@@ -132,7 +133,7 @@ class OpeningLoader:
         to another opening (Meaning the child opening starts with the moves of the parent)
         :return:    The DataFrame with heritage information
         '''
-        base_openings = self.get_base_node().children
+        base_openings = self.get_root_node().children
         self.heritage_df = DataFrame(columns=['child_id', 'parent_id'])
 
         for node in base_openings:
@@ -150,15 +151,14 @@ class OpeningLoader:
 
 
     def _create_tree(self):
-        base_node = OpeningNode(opening_id='', uci='')
-        current_node = base_node
-        for uci, opening_id in self.df.sort_values('uci')[['uci', 'id']].values:
-
+        root_node = OpeningNode(opening_id='', uci='', pgn='')
+        current_node = root_node
+        for uci, pgn, opening_id in self.df.sort_values('uci')[['uci', 'pgn', 'id']].values:
             while not uci.startswith(current_node.uci):
                 current_node = current_node.parent
-            current_node = OpeningNode(opening_id=opening_id, uci=uci, parent=current_node)
+            current_node = OpeningNode(opening_id=opening_id, uci=uci, pgn=pgn, parent=current_node)
 
-        self.tree = RenderTree(base_node)
+        self.tree = RenderTree(root_node)
 
     def _load_df(self):
         if isfile(f'{self.df_path}'):

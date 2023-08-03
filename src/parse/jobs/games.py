@@ -18,14 +18,14 @@ def parse_pgn(pgn_text: str) -> chess.pgn.Game:
     game = chess.pgn.read_game(pgn_io)
     return game
 
-def process_game(game: chess.pgn.Game, base_node: OpeningNode, num_moves: int = 10) -> Sequence[Dict]:
+def process_game(game: chess.pgn.Game, root_node: OpeningNode, num_moves: int = 10) -> Sequence[Dict]:
     '''
     Parse a chess game into players, opening names and moves.
     Moves will be taken both from the game data as well as a collection of known moves;
     One game will be split into 1 or more lines to reflect all matched openings. The longest matching move prefix
     will be noted with 'real_game': 1. This means that counting all rows with real_game == 1 yields number of games
     :param game:        Instance of chess.pgn.Game
-    :param base_node:   Root node of the opening tree. Used to traverse tree; Has no valid opening associated with it
+    :param root_node:   Root node of the opening tree. Used to traverse tree; Has no valid opening associated with it
     :param num_moves:   Number of moves to store per game
     :return:            Dictionary with the following keys:
                         - 'white':              Name of the white player
@@ -58,7 +58,7 @@ def process_game(game: chess.pgn.Game, base_node: OpeningNode, num_moves: int = 
     # Identify all openings with matching move prefix by traversing the tree of openings
     # The first element is dropped as it is the base opening (if that fails, no match was found)
     try:
-        result_list = _opening_tree_traversal(uci_str, base_node)[1:]
+        result_list = _opening_tree_traversal(uci_str, root_node)[1:]
     except:
         result_list = {'matched_id': None, 'matched_moves': None, 'real_game': 1}
 
@@ -91,9 +91,9 @@ def run(file_name: str = 'test_cleaned.pgn', partitions=10):
     out_path = out_dir / file_name.replace('.pgn', '.parquet')
     os.makedirs(os.path.dirname(out_dir), exist_ok=True)
 
-    # Get the base_node of the opening tree
+    # Get the root_node of the opening tree
     loader = OpeningLoader()
-    base_node = loader.get_base_node()
+    root_node = loader.get_root_node()
 
     # 1. Spark preparation
     spark = SparkSession.builder.getOrCreate()
@@ -106,7 +106,7 @@ def run(file_name: str = 'test_cleaned.pgn', partitions=10):
     games = data.map(lambda game_str: parse_pgn(game_str))
 
     # 3. Extract the relevant information per game and save the results as a parquet file
-    parsed_df = games.flatMap(lambda game: process_game(game=game, base_node=base_node)).toDF()
+    parsed_df = games.flatMap(lambda game: process_game(game=game, root_node=root_node)).toDF()
     parsed_df.write.parquet(str(out_path), mode='overwrite')
 
     sc.stop()
