@@ -13,7 +13,7 @@ def run(file_name: str = 'test_cleaned_prob.parquet'):
 
     # 2. Prepare spark and load the dataframe (When running into issues with Java Heap space, increase driver.memory)
     spark = SparkSession.builder \
-        .config('spark.driver.memory', '8g') \
+        .config('spark.driver.memory', '12g') \
         .appName('Opening Distributions') \
         .getOrCreate()
     spark.sparkContext.setCheckpointDir('./checkpoints')

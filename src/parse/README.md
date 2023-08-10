@@ -36,11 +36,11 @@ Get the probability of playing an opening for each player and add the country in
 python3 -m src.parse.jobs.player_probabilities --parquet_file test_cleaned.parquet
 ```
 
-### 6. country_openings 
+### 6. country_probabilities
 Get the probabilities (and standardized prob) of an opening on country level plus the number of players per country:
 (Don't forget the '_prob'-suffix of the file name)
 ```
-python3 -m src.parse.jobs.country_openings --parquet_file test_cleaned_prob.parquet
+python3 -m src.parse.jobs.country_probabilities --parquet_file test_cleaned_prob.parquet
 ```
 
 ## Notes
