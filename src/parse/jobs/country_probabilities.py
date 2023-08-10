@@ -60,7 +60,9 @@ def run(file_name: str = "test_cleaned_prob.parquet", min_games: int = 10):
                                                              mean('p_won_b').alias('mean_p_won_b'),
                                                              stddev('p_won_b').alias('std_p_won_b')
                                                              ).fillna(0)
-    global_mean_std_df.write.parquet(str(DATA_DIRECTORY / 'openings/opening_mean_std.parquet'),
+
+    mean_std_file = file_name.replace('_prob.p', '_mean_std.p')
+    global_mean_std_df.write.parquet(str(DATA_DIRECTORY / f'openings/{mean_std_file}'),
                                      mode='overwrite')
 
     # 7. Use mean and stddev to standardize the country probabilities
