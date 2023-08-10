@@ -30,7 +30,7 @@ def run(file_name: str = 'test_cleaned.parquet',
 
     # 2. Prepare spark and load the dataframe
     spark = SparkSession.builder \
-        .config('spark.driver.memory', '4g') \
+        .config('spark.driver.memory', '12g') \
         .appName('Player Probabilities') \
         .getOrCreate()
     spark.sparkContext.setCheckpointDir('./checkpoints')

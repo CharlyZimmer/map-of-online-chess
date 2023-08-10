@@ -43,6 +43,19 @@ Get the probabilities (and standardized prob) of an opening on country level plu
 python3 -m src.parse.jobs.country_probabilities --parquet_file test_cleaned_prob.parquet
 ```
 
+### Optional: Concatenating months
+In order to combine data for multiple months, use [`merge_player_openings.py`](./jobs/merge_player_openings.py).
+This job takes in a `start_month` and `end_month` argument and combines all player-opening counts for this range.
+Note: 
+- You need to run the third step (`player_openings`) for all months in the range before being able to run this job.
+- The filenames for each month should be of the form YYYY-MM (like `2022-07.parquet`)
+- The output file will be placed in `./data/output/players` and be named after start and end month
+
+Example:
+```
+python3 -m src.parse.jobs.merge_player_openings --start_month 2022-07 --end_month 2023-06
+```
+
 ## Notes
 - Games: https://database.lichess.org/
 - List of openings: https://github.com/lichess-org/chess-openings/tree/64b26a2ca37659cdc3e87e181a8844db64aee7b9
