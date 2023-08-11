@@ -23,12 +23,13 @@ class Plotter:
         mean_std_file = country_parquet.replace('.p', '_mean_std.p')
         self.global_df = read_parquet(DATA_DIRECTORY / f'openings/{mean_std_file}')
 
-        self.opening_df = OpeningLoader().df
+        self.opening_loader = OpeningLoader()
+        self.opening_df = self.opening_loader.df
 
     def plot_opening(self, opening_id: str = 'B00-2039-2459', x_lim: Tuple = None, y_lim: Tuple = None,
                      add_ellipse=False):
         # 1. Identify which color made the last move and get the name of the opening
-        color = self._identify_color(opening_id)
+        color = self.opening_loader.get_color(opening_id)
         name = self.opening_df.loc[self.opening_df['id'] == opening_id]['name'].values[0]
 
         # 2. Filter the country_df and get mean and stddev values
@@ -72,16 +73,6 @@ class Plotter:
 
         plt.title(name)
         plt.show()
-
-    def _identify_color(self, opening_id: str = 'B00-2039-2459') -> str:
-        df = self.opening_df.copy(deep=True)
-
-        # Find the right-most instance of a space.
-        # If the char left of it is a point, the last move was made by white, otherwise by black
-        pgn = df.loc[df['id'] == opening_id]['pgn'].values[0]
-        space_pos = pgn.rfind(' ')
-
-        return 'w' if pgn[space_pos - 1] == '.' else 'b'
 
     def _get_global_mean_std(self, opening_id: str = 'B00-2039-2459', color: str = 'w'):
         df = self.global_df.loc[self.global_df['matched_id'] == opening_id] \

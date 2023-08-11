@@ -141,6 +141,15 @@ class OpeningLoader:
 
         return self.heritage_df
 
+    def get_color(self, opening_id: str = 'B00-2039-2459') -> str:
+        df = self.df.copy(deep=True)
+
+        # Find the right-most instance of a space.
+        # If the char left of it is a point, the last move was made by white, otherwise by black
+        pgn = df.loc[df['id'] == opening_id]['pgn'].values[0]
+        space_pos = pgn.rfind(' ')
+
+        return 'w' if pgn[space_pos - 1] == '.' else 'b'
 
     def _update_heritage_df(self, node: OpeningNode, parent_id: str):
         new_row = DataFrame(data=[[node.opening_id, parent_id]],
