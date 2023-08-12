@@ -4,7 +4,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, collect_list
 
 from src import DATA_DIRECTORY
-def run(file_name: str = 'test_cleaned_prob.parquet'):
+def run(file_name: str = 'test_cleaned_prob.parquet', min_games=50):
     # 1. Prepare folders
     in_path = DATA_DIRECTORY / f'output/players/{file_name}'
     out_dir = DATA_DIRECTORY / f'analysis/distributions'
@@ -18,7 +18,8 @@ def run(file_name: str = 'test_cleaned_prob.parquet'):
         .getOrCreate()
     spark.sparkContext.setCheckpointDir('./checkpoints')
 
-    df = spark.read.parquet(str(in_path))
+    # Filter for all players with at least the required number of games
+    df = spark.read.parquet(str(in_path)).filter(col('total_count_w') + col('total_count_b') >= min_games)
 
     # 3. Get the global and country distributions for each opening
     global_df = df.groupBy('matched_id')\

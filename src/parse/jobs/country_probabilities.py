@@ -34,9 +34,8 @@ def run(file_name: str = "test_cleaned_prob.parquet", min_games: int = 50):
     spark.sparkContext.setCheckpointDir('./checkpoints')
 
     # 3. Load the probabilities parquet and only keep players with country information and the minimum number of games
-    player_df = spark.read.parquet(str(in_path))
-    filtered_df = player_df.filter(col('country').isNotNull()) \
-        .filter(col('total_count_w') + col('total_count_b') > min_games)
+    player_df = spark.read.parquet(str(in_path)).filter(col('total_count_w') + col('total_count_b') >= min_games)
+    filtered_df = player_df.filter(col('country').isNotNull())
 
     # 4. Count players per country and save the result
     country_player_count_df = filtered_df.groupBy('country', 'id').agg(count('id')) \
