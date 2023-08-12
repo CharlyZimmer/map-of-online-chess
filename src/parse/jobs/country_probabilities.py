@@ -4,7 +4,7 @@ from pyspark.sql.functions import col, count, mean, stddev
 
 from src import DATA_DIRECTORY
 
-def run(file_name: str = "test_cleaned_prob.parquet", min_games: int = 10):
+def run(file_name: str = "test_cleaned_prob.parquet", min_games: int = 50):
     '''
     Creates a DataFrame with country / opening combinations and probabilities for playing / winning on country level.
     These probabilities are also standardized with global mean and standard deviation for openings
