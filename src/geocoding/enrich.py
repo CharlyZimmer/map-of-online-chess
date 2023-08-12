@@ -25,7 +25,7 @@ class EnrichGeoJSON:
         self._load_json_files()
         self._load_and_filter_df()
 
-    def get_color_positions(self, max_val: float = 1.0, min_val: float = -1.0, num_positions: int = 400):
+    def get_color_positions(self, max_val: float = 3.0, min_val: float = -1.0, num_positions: int = 400):
         value_range = max_val - min_val
         step_size = value_range / num_positions
 
@@ -124,7 +124,7 @@ class EnrichGeoJSON:
     @staticmethod
     def _get_position(p: float, min_val: float, step_size: float, num_positions: int):
         try:
-            return min(num_positions + 1, max(round((p - min_val) / step_size) + 1, 1))
+            return min(num_positions, max(round((p - min_val) / step_size) + 1, 1))
         except:
             return 0
 
