@@ -25,7 +25,7 @@ class EnrichGeoJSON:
         self._load_json_files()
         self._load_and_filter_df()
 
-    def get_color_positions(self, max_val: float = 4.0, min_val: float = -4.0, num_positions: int = 400):
+    def get_color_positions(self, max_val: float = 1.0, min_val: float = -1.0, num_positions: int = 400):
         value_range = max_val - min_val
         step_size = value_range / num_positions
 

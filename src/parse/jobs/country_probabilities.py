@@ -34,23 +34,24 @@ def run(file_name: str = "test_cleaned_prob.parquet", min_games: int = 50):
     spark.sparkContext.setCheckpointDir('./checkpoints')
 
     # 3. Load the probabilities parquet and only keep players with country information and the minimum number of games
-    player_df = spark.read.parquet(str(in_path)) \
-        .filter(col('country').isNotNull()) \
+    player_df = spark.read.parquet(str(in_path))
+    filtered_df = player_df.filter(col('country').isNotNull()) \
         .filter(col('total_count_w') + col('total_count_b') > min_games)
 
     # 4. Count players per country and save the result
-    country_player_count_df = player_df.groupBy('country').agg(count('id').alias('num_players'))
+    country_player_count_df = filtered_df.groupBy('country', 'id').agg(count('id')) \
+        .groupBy('country').agg(count('id').alias('num_players'))
     country_player_count_df.write.parquet(str(out_path).replace('.parquet', '_player_count.parquet'),
                                           mode='overwrite')
 
     # 5. Group by country and calculate the mean values
-    country_df = player_df.groupBy('country', 'matched_id').agg(mean('p_w').alias('p_w'),
+    country_df = filtered_df.groupBy('country', 'matched_id').agg(mean('p_w').alias('p_w'),
                                                                 mean('p_b').alias('p_b'),
                                                                 mean('p_won_w').alias('p_won_w'),
                                                                 mean('p_won_b').alias('p_won_b')
                                                                 )
 
-    # 6. Find the global mean and stddev per opening; Save the result
+    # 6. Find the global mean and stddev per opening; Save the result (No country information required)
     global_mean_std_df = player_df.groupBy('matched_id').agg(mean('p_w').alias('mean_p_w'),
                                                              stddev('p_w').alias('std_p_w'),
                                                              mean('p_b').alias('mean_p_b'),
