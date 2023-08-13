@@ -1,5 +1,5 @@
 import os
-from pandas import concat, DataFrame, read_parquet
+from pandas import concat, DataFrame, merge, read_parquet
 
 from src import DATA_DIRECTORY
 from src.parse.utils.openings import OpeningLoader
@@ -7,7 +7,7 @@ from src.parse.utils.openings import OpeningLoader
 class Filterer:
     def __init__(self, file_name: str = 'test_cleaned.parquet'):
         # Set the opening loader
-        opening_loader = OpeningLoader()
+        self.opening_loader = OpeningLoader()
 
         # Define the out_path
         self.out_path = DATA_DIRECTORY / f'analysis/significant_openings/{file_name}'
@@ -22,7 +22,7 @@ class Filterer:
         tmp_df = ks_test_df.merge(country_df, how='outer', on=['country', 'matched_id'])
 
         openings = tmp_df.matched_id.unique()
-        color_df = DataFrame.from_dict({o: [opening_loader.get_color(o)] for o in openings},
+        color_df = DataFrame.from_dict({o: [self.opening_loader.get_color(o)] for o in openings},
                                        orient='index').reset_index().rename(
             columns={0: 'color', 'index': 'matched_id'})
 
@@ -67,10 +67,11 @@ class Filterer:
         }
         df = df.rename(columns=cols)
 
-        # Return the dataframe, filtered for relevant rows and columns
-        return df.loc[(df[f'p_val_{mode}'] < alpha) & (abs(df[f'dev_{mode}']) > min_dev)][
-            list(cols.values())
-        ]
+        # Filter the DataFrame for relevant rows and columns, add opening name and moves, and return it
+        df = df.loc[(df[f'p_val_{mode}'] < alpha) & (abs(df[f'dev_{mode}']) > min_dev)][list(cols.values())]
+        df = merge(df, self.opening_loader.df[['id', 'name', 'pgn']].set_index('id'),
+                   left_on='matched_id', right_index=True)
+        return df
 
     def create_dataframes(self):
         '''
@@ -82,6 +83,8 @@ class Filterer:
             df = DataFrame()
             for color in ['w', 'b']:
                 df = concat([df, self.get_significant_openings(mode=mode, color=color)], axis=0)
+
+            df.sort_values(f'dev_{mode}', ascending=False, inplace=True)
             df.to_csv(str(self.out_path).replace('.parquet', f'_{mode}.csv'))
 
 
