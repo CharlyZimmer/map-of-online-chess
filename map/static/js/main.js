@@ -130,6 +130,28 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }).addTo(map);
 
+        var legend = L.control({ position: 'bottomleft' });
+
+        legend.onAdd = function (map) {
+            var div = L.DomUtil.create("div", "legend");
+            div.innerHTML += `
+            <div style="background-color: white; opacity: 95%; height: 200px; width: 80px; padding-top: 20px;">
+                <div style="display: inline-block; height: 160px; width: 100%">
+                    <div style="float: left; display: inline-block; height: 100%; width: 20px; margin-left: 15px; background: linear-gradient(to bottom, #ff0000 0%, #ffffff 50%, #0000ff 100%);"></div>
+                    <div style="float: right; display: grid; height: 100%; width: 30px; margin-right: 7px;">
+                        <div style="margin-top: -6px">50%</div>
+                        <div style="line-height: 108px; margin-bottom: -13px">34%</div>
+                        <div style="display: flex; height: 100%; ">
+                            <div style="display: inline-block; align-self: flex-end; margin-bottom: -6px">12%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+            return div;
+        };
+
+        legend.addTo(map);
+
     });
 
     // chess board
