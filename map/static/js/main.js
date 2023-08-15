@@ -120,7 +120,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Add base view to map
         countryLayer = L.geoJSON(countriesData, {
-            onEachFeature: Countries.onEachCountryBase,
+            onEachFeature: (feature, layer) => Countries.onEachCountryBase(feature, layer, map),
             style: {
                 fillColor: '#F28F3A',
                 weight: 2,
@@ -139,10 +139,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 <div style="display: inline-block; height: 160px; width: 100%">
                     <div style="float: left; display: inline-block; height: 100%; width: 20px; margin-left: 15px; background: linear-gradient(to bottom, #ff0000 0%, #ffffff 50%, #0000ff 100%);"></div>
                     <div style="float: right; display: grid; height: 100%; width: 30px; margin-right: 7px;">
-                        <div style="margin-top: -6px">50%</div>
-                        <div style="line-height: 108px; margin-bottom: -13px">34%</div>
+                        <div style="margin-top: -6px">+3σ</div>
+                        <div style="line-height: 108px; margin-bottom: -13px">µ</div>
                         <div style="display: flex; height: 100%; ">
-                            <div style="display: inline-block; align-self: flex-end; margin-bottom: -6px">12%</div>
+                            <div style="display: inline-block; align-self: flex-end; margin-bottom: -6px">-1σ</div>
                         </div>
                     </div>
                 </div>
@@ -175,7 +175,7 @@ function switchToBase() {
         countryLayer.remove();
     }
     countryLayer = L.geoJSON(countriesData, {
-        onEachFeature: Countries.onEachCountryBase,
+        onEachFeature: (feature, layer) => Countries.onEachCountryBase(feature, layer, map),
         style: {
             fillColor: '#F28F3A',
             weight: 2,
@@ -208,7 +208,7 @@ function updateOpeningOnMap() {
     }
     countryLayer = L.geoJSON(countriesData, {
         onEachFeature: (feature, layer) => Countries.onEachCountryOpening(
-            feature, layer, currentOpening, color
+            feature, layer, currentOpening, color, map
         ),
         style: (feature) => Colors.countryStyle(feature, openingGradients, currentOpening, color)
     }).addTo(map);

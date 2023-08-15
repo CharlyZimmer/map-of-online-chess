@@ -19,16 +19,23 @@
     // Base function: Highlight countries with hovering and show name and player numbers on click
     // --------------------------------------------------------------------------------------------------------------
     // Function to interact with countries via the cursor
-    Countries.onEachCountryBase = function (feature, layer) {
+    Countries.onEachCountryBase = function (feature, layer, map) {
         layer.on({
-            click: countryClickBase,
+            click: (e) => countryClickBase(e, map),
             mouseover: highlightFeature,
             mouseout: resetHighlight
         });
     }
     // Show country name and player count when clicking
-    function countryClickBase(e) {
-        alert(e.target.feature.properties.ADMIN + ": " + e.target.feature.properties.PLAYER_COUNT + " players");
+    function countryClickBase(e, map) {
+        var popup = L.popup()
+            .setLatLng(e.latlng)
+            .setContent('<div style="width: 200px;">'
+                + "<div style='font-weight: bold'>" + e.target.feature.properties.ADMIN + "</div><br>"
+                + "<div style='float:left'>Players:</div>"
+                + "<div style='float:right; text-align: right'>" + e.target.feature.properties.PLAYER_COUNT.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "</div><br>"
+                + '</div>')
+            .openOn(map);
     }
 
     // --------------------------------------------------------------------------------------------------------------
@@ -50,24 +57,28 @@
     // --------------------------------------------------------------------------------------------------------------
     // Opening function: In addition to base functions, also show the probability for an opening on click
     // --------------------------------------------------------------------------------------------------------------
-    Countries.onEachCountryOpening = function (feature, layer, currentOpening, color) {
+    Countries.onEachCountryOpening = function (feature, layer, currentOpening, color, map) {
         layer.on({
-            click: (e) => countryClickOpening(e, currentOpening, color),
+            click: (e) => countryClickOpening(e, currentOpening, color, map),
             mouseover: highlightFeatureOpening,
             mouseout: resetHighlightOpening
         });
     }
 
-    function countryClickOpening(e, currentOpening, color) {
-        var openingName = currentOpening['data']['name'];
+    function countryClickOpening(e, currentOpening, color, map) {
 
-        alert(e.target.feature.properties.ADMIN + "\n"
-            + "- " + e.target.feature.properties.PLAYER_COUNT + " players\n"
-            + "- Probability played (" + openingName + "): " +
-            Math.round(e.target.feature.properties[currentOpening['id'] + "_" + color] * 1000) / 10 + "%\n"
-            + "- Won when played (" + openingName + "): " +
-            Math.round(e.target.feature.properties[currentOpening['id'] + "_WON_" + color] * 1000) / 10 + "%\n")
-            ;
+        var popup = L.popup()
+            .setLatLng(e.latlng)
+            .setContent('<div style="width: 200px;">'
+                + "<div style='font-weight: bold'>" + e.target.feature.properties.ADMIN + "</div><br>"
+                + "<div style='float:left'>Players:</div>"
+                + "<div style='float:right; text-align: right'>" + e.target.feature.properties.PLAYER_COUNT.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "</div><br>"
+                + "<div style='float:left'>Probability:</div>"
+                + "<div style='float:right; text-align: right'>" + Math.round(e.target.feature.properties[currentOpening['id'] + "_" + color] * 1000) / 10 + "%</div><br>"
+                + "<div style='float:left'>Win:</div>"
+                + "<div style='float:right; text-align: right'>" + Math.round(e.target.feature.properties[currentOpening['id'] + "_WON_" + color] * 1000) / 10 + "%</div><br>"
+                + '</div>')
+            .openOn(map);
 
     }
 
