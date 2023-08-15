@@ -73,6 +73,10 @@
     margin-left: 5px
 }
 
+#buttonUndo {
+    float: right;
+}
+
 /* The switch - the box around the slider */
 .switch {
     position: relative;

@@ -320,3 +320,39 @@ function updateColorToggle() {
     $('#colorCheckbox').prop("checked", true)
 
 }
+
+function undoLastMove() {
+
+    moveHistory = game.history({ verbose: true });
+
+    // if starting position return
+    if (moveHistory.length == 0) {
+        return
+    }
+
+    game.undo()
+    moveHistory = game.history({ verbose: true });
+    board.start()
+
+    lastMove = null
+    while (moveHistory.length > 0) {
+        var p1Move = moveHistory.shift(),
+            p2Move = moveHistory.shift(),
+            p1c = p1Move.from + '-' + p1Move.to,
+            p2c = (p2Move == undefined) ? '' : p2Move.from + '-' + p2Move.to;
+        lastMove = (p2Move == undefined) ? p1Move : p2Move
+        board.move(p1c)
+        board.move(p2c)
+        i++;
+    }
+
+    $board.find('.' + squareClass).removeClass('highlight')
+    if (lastMove) {
+        $board.find('.square-' + lastMove.from).addClass('highlight')
+        $board.find('.square-' + lastMove.to).addClass('highlight')
+    }
+
+    updateStatus()
+    updateOpeningAfterMove()
+
+}
