@@ -85,12 +85,12 @@ class Filterer:
         df = df.loc[(df[f'p_val_{mode}'] < alpha) &
                     (abs(df[f'dev_{mode}']) > min_dev) &
                     (df['num_players'] >= min_players)]
-        df = df.apply(lambda row: self._undo_standardization(row, color=color), axis=1)
+        df = df.apply(lambda row: self._undo_standardization(row, color=color), axis=1)[list(cols.values())]
 
-        # Limit the columns, add opening name and moves, and return the df
+        # Add opening name and moves, and return the df
         df = merge(df, self.opening_loader.df[['id', 'name', 'pgn']].set_index('id'),
-                   left_on='matched_id', right_index=True)[list(cols.values())]
-        
+                   left_on='matched_id', right_index=True)
+
         return df
 
     def create_dataframes(self):
