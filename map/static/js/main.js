@@ -400,6 +400,8 @@ function undoLastMove() {
 
     updateStatus()
     updateOpeningAfterMove()
+    updateColor()
     legend.update()
+    updateOpeningOnMap()
 
 }
