@@ -10,8 +10,8 @@ var map = null
 var countryLayer = null
 var countriesData = null
 var openingGradients = null
-//TODO: Change color dynamically
 var color = "W"
+var legend = null
 
 // code for only allowing legal moves by https://chessboardjs.com/examples#5000
 function onDragStart(source, piece, position, orientation) {
@@ -26,6 +26,7 @@ function onDragStart(source, piece, position, orientation) {
 }
 
 function onDrop(source, target) {
+
     // see if the move is legal
     var move = game.move({
         from: source,
@@ -72,6 +73,7 @@ function updateOpeningAfterMove() {
     updateOpeningOnMap()
     updateOpeningInDropdown()
     updateColor()
+    legend.update()
 
 }
 
@@ -131,26 +133,67 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }).addTo(map);
 
-        var legend = L.control({ position: 'bottomleft' });
+        legend = L.control({ position: 'bottomleft' });
 
         legend.onAdd = function (map) {
-            var div = L.DomUtil.create("div", "legend");
-            div.innerHTML += `
-            <div style="background-color: white; opacity: 95%; height: 200px; width: 80px; padding-top: 20px;">
+            this._div = L.DomUtil.create("div", "legend");
+            this._div.innerHTML += `
+            <div style="background-color: white; opacity: 95%; height: 200px; width: 100px; padding-top: 20px;">
                 <div style="display: inline-block; height: 160px; width: 100%">
                     <div style="float: left; display: inline-block; height: 100%; width: 20px; margin-left: 15px; background: linear-gradient(to bottom, #ff0000 0%, #ffffff 50%, #0000ff 100%);"></div>
-                    <div style="float: right; display: grid; height: 100%; width: 30px; margin-right: 7px;">
+                    <div style="float: right; display: grid; height: 100%; width: 30px; margin-right: 25px;">
                         <div style="margin-top: -6px">+3σ</div>
-                        <div style="line-height: 108px; margin-bottom: -13px">µ</div>
+                        <div id="mean" style="line-height: 108px; margin-bottom: -13px">µ</div>
                         <div style="display: flex; height: 100%; ">
                             <div style="display: inline-block; align-self: flex-end; margin-bottom: -6px">-1σ</div>
                         </div>
                     </div>
                 </div>
             </div>`;
-            return div;
+            return this._div;
         };
 
+        legend.update = function (props) {
+
+            if (currentOpening == null) {
+
+                this._div.innerHTML = `
+                <div style="background-color: white; opacity: 95%; height: 200px; width: 100px; padding-top: 20px;">
+                    <div style="display: inline-block; height: 160px; width: 100%">
+                        <div style="float: left; display: inline-block; height: 100%; width: 20px; margin-left: 15px; background: linear-gradient(to bottom, #ff0000 0%, #ffffff 50%, #0000ff 100%);"></div>
+                        <div style="float: right; display: grid; height: 100%; width: 30px; margin-right: 25px;">
+                            <div style="margin-top: -6px">+3σ</div>
+                            <div id="mean" style="line-height: 108px; margin-bottom: -13px">µ</div>
+                            <div style="display: flex; height: 100%; ">
+                                <div style="display: inline-block; align-self: flex-end; margin-bottom: -6px">-1σ</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+
+            } else {
+
+                upper_bound = (currentOpening["data"]["mean_p_" + color.toLowerCase()] + 3 * currentOpening["data"]["std_p_" + color.toLowerCase()])
+                upper_bound = (Math.min(upper_bound, 1) * 100).toFixed(2)
+                mean = (currentOpening["data"]["mean_p_" + color.toLowerCase()] * 100).toFixed(2)
+                lower_bound = (currentOpening["data"]["mean_p_" + color.toLowerCase()] - currentOpening["data"]["std_p_" + color.toLowerCase()])
+                lower_bound = (Math.max(lower_bound, 0) * 100).toFixed(2)
+
+                this._div.innerHTML = `
+            <div style="background-color: white; opacity: 95%; height: 200px; width: 100px; padding-top: 20px;">
+                <div style="display: inline-block; height: 160px; width: 100%">
+                    <div style="float: left; display: inline-block; height: 100%; width: 20px; margin-left: 15px; background: linear-gradient(to bottom, #ff0000 0%, #ffffff 50%, #0000ff 100%);"></div>
+                    <div style="float: right; display: grid; height: 100%; width: 30px; margin-right: 25px;">
+                        <div style="margin-top: -6px">`+ (upper_bound < 100 ? '>' : '') + upper_bound + `%</div>
+                        <div id="mean" style="line-height: 108px; margin-bottom: -13px">`+ mean + `%</div>
+                        <div style="display: flex; height: 100%; ">
+                            <div style="display: inline-block; align-self: flex-end; margin-bottom: -6px">`+ (lower_bound > 0 ? '<' : '') + lower_bound + `%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+            };
+        }
         legend.addTo(map);
 
     });
@@ -254,6 +297,7 @@ function reset() {
     $board.find('.' + squareClass).removeClass('highlight')
     switchToBase()
     updateStatus()
+    legend.update()
 
 }
 
@@ -274,6 +318,7 @@ $('#openingInput').on('select2:select', function (e) {
     updateColor()
     updateOpeningOnMap()
     updateOpeningOnBoard()
+    legend.update()
 
 })
 
@@ -286,6 +331,7 @@ function changeColor(checkbox) {
     }
 
     updateOpeningOnMap()
+    legend.update()
 
 }
 
@@ -354,5 +400,6 @@ function undoLastMove() {
 
     updateStatus()
     updateOpeningAfterMove()
+    legend.update()
 
 }
