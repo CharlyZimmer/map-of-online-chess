@@ -1,4 +1,5 @@
 # Map of Online Chess
+![map-img](Map_Of_Online_Chess.PNG)
 ## Preparation
 ### Packages
 Use the requirements file to install necessary packages with your package manager of choice. E.g.
